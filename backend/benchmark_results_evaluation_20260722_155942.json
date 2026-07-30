@@ -1,0 +1,136 @@
+{
+  "summary": {
+    "timestamp": "2026-07-22T15:59:42.591467",
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "avg_scores": {
+      "relevance": 10.0,
+      "depth": 8.5,
+      "novelty": 9.0,
+      "coherence": 8.5,
+      "citation_accuracy": 8.4
+    },
+    "avg_overall": 9.0,
+    "avg_duration_ms": 187301.3,
+    "avg_word_count": 7518.0,
+    "avg_sources": 20.0,
+    "avg_qa_issues": 4.0,
+    "total_qa_issues": 4,
+    "total_passed_qa": 0
+  },
+  "results": [
+    {
+      "query": "Zero-Knowledge Proofs in Decentralized Systems",
+      "label": "[custom] (custom)",
+      "timestamp": "2026-07-22T15:59:42.591341",
+      "duration_ms": 187301.3,
+      "word_count": 7518,
+      "sub_questions": 6,
+      "sources": 20,
+      "citation_count": 488,
+      "scores": {
+        "relevance": 10.0,
+        "depth": 8.5,
+        "novelty": 9.0,
+        "coherence": 8.5,
+        "citation_accuracy": 8.4
+      },
+      "overall": 9.0,
+      "qa_issues": 4,
+      "qa_passed": false,
+      "qa_issues_list": [
+        "DUPLICATION: Section 5 and section 6 share 100% overlapping content",
+        "NUMERIC: Uncorroborated claims found: $10 billion, 2025, $903.5 million, 2030, 22.1%",
+        "ENTITY: Potential name mismatches: Deep Research Report, Knowledge Proofs In Decentralized Systems, Date Generated, Sources Consulted, Executive Summary\n\nThis",
+        "EXTRACTION: Source with no extractable prose lacks [EXTRACTION FAILED] marker"
+      ],
+      "metrics": {
+        "execution": {
+          "total_duration_ms": 61444.5,
+          "node_timings_ms": {
+            "planner": 2396.9,
+            "searcher": 43064.4,
+            "filter": 0.0,
+            "synthesis": 958.3,
+            "gap_detector": 0.0,
+            "citation_mapper": 0.1,
+            "report_node_id": 3764.8,
+            "qa_pass": 4465.4,
+            "knowledge_graph": 1568.4,
+            "provenance": 134.2,
+            "evaluator": 5091.8
+          },
+          "node_order": [
+            "planner",
+            "searcher",
+            "filter",
+            "synthesis",
+            "gap_detector",
+            "citation_mapper",
+            "report_node_id",
+            "qa_pass",
+            "evaluator"
+          ]
+        },
+        "breadth": {
+          "depth": 1,
+          "sub_questions": 6,
+          "search_queries": 6,
+          "sources_found": 20,
+          "gap_iterations": 0
+        },
+        "efficiency": {
+          "total_llm_calls": 19,
+          "llm_calls_per_stage": {
+            "planner": 1,
+            "filter": 6,
+            "synthesis": 6,
+            "gap_detector": 1,
+            "citation_mapper": 1,
+            "report_node_id": 4,
+            "evaluator": 0
+          },
+          "estimated_input_tokens": 32077,
+          "estimated_output_tokens": 14038
+        },
+        "quality": {
+          "scores": {
+            "relevance": 10.0,
+            "depth": 8.5,
+            "novelty": 9.0,
+            "coherence": 8.5,
+            "citation_accuracy": 8.4
+          },
+          "overall": 9.0
+        },
+        "proof_of_improvement": {
+          "prior_lessons_count": 3,
+          "prior_lessons": [
+            "When researching 'Andhra Pradesh', using DuckDuckGo web search with direct page scraping proved effective for gathering diverse sources.",
+            "When researching 'Solid-State Battery Breakthroughs 2026', using DuckDuckGo web search with direct page scraping proved effective for gathering diverse sources.",
+            "When researching 'Zero-Knowledge Proofs in Scalable Decentralized Identity Systems', using DuckDuckGo web search with direct page scraping proved effective for gathering diverse sources."
+          ],
+          "current_quality_scores": {
+            "relevance": 10.0,
+            "depth": 8.5,
+            "novelty": 9.0,
+            "coherence": 8.5,
+            "citation_accuracy": 8.4
+          },
+          "current_overall": 9.0
+        }
+      },
+      "success": true,
+      "error": null,
+      "benchmark_id": "custom",
+      "topic": "custom"
+    }
+  ],
+  "config": {
+    "depth": 1,
+    "complexity": 1,
+    "target_paragraphs": 3,
+    "target_sub_questions": 6
+  }
+}

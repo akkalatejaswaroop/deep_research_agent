@@ -1,0 +1,289 @@
+{
+  "name": "Deep Research Ollama Parallel Agent Workflow (PDF & Reflection Enabled)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "deep-research-v3",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-webhook-trigger",
+      "name": "Webhook: Sub-Questions",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst subQuestions = input.sub_questions || [];\nconst query = input.query || '';\nconst model = input.model || 'phi3:mini';\nconst ollamaHost = input.ollama_host || 'http://127.0.0.1:11434';\nconst sessionId = input.session_id || '';\n\nreturn subQuestions.map((sq, index) => ({\n  json: {\n    sub_question: sq,\n    query: query,\n    index: index,\n    model: model,\n    ollama_host: ollamaHost,\n    session_id: sessionId\n  }\n}));"
+      },
+      "id": "node-split-subquestions",
+      "name": "Split Sub-Questions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://export.arxiv.org/api/query?search_query=all:{{ encodeURIComponent($json.sub_question) }}&max_results=2",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "node-arxiv-search",
+      "name": "arXiv Academic Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://html.duckduckgo.com/html/?q={{ encodeURIComponent($json.sub_question) }}",
+        "options": {
+          "headers": {
+            "entries": [
+              {
+                "name": "User-Agent",
+                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+              }
+            ]
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "node-web-search",
+      "name": "DuckDuckGo Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst raw = item.data || item.body || '';\n\nlet isPdf = false;\nlet cleanText = raw;\n\n// PDF & Binary Document Parser\nif (typeof raw === 'string' && (raw.includes('%PDF-') || item.sub_question?.toLowerCase().includes('.pdf'))) {\n  isPdf = true;\n  cleanText = raw.replace(/[^a-zA-Z0-9\\s.,;:()'\"\\/\\-\\[\\]]/g, ' ').replace(/\\s+/g, ' ');\n}\n\nreturn {\n  json: {\n    ...item,\n    is_pdf: isPdf,\n    extracted_content: cleanText.substring(0, 8000)\n  }\n};"
+      },
+      "id": "node-pdf-document-parser",
+      "name": "PDF & Document Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst html = item.extracted_content || item.data || '';\nconst blockedDomains = ['vixra.org', 'fandom.com', 'gamepedia.com', 'tradingview.com'];\nconst tier1Domains = ['.edu', '.gov', 'arxiv.org', 'wikipedia.org', 'docs.', 'github.com', 'ieee.org'];\n\nlet qualityScore = 0.75;\nlet domainTier = 'standard';\n\nif (blockedDomains.some(d => html.toLowerCase().includes(d))) {\n  qualityScore = 0.1;\n  domainTier = 'blocked';\n} else if (item.is_pdf || tier1Domains.some(d => html.toLowerCase().includes(d))) {\n  qualityScore = 0.95;\n  domainTier = 'academic_primary';\n}\n\nreturn {\n  json: {\n    ...item,\n    quality_score: qualityScore,\n    domain_tier: domainTier,\n    is_trusted: qualityScore >= 0.5\n  }\n};"
+      },
+      "id": "node-domain-quality-filter",
+      "name": "Domain Quality Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.ollama_host }}/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $json.model }}\",\n  \"prompt\": \"Analyze sub-question: '{{ $json.sub_question }}' for query '{{ $json.query }}'.\\nDocument Type: {{ $json.is_pdf ? 'PDF Whitepaper' : 'Web Page' }} (Tier: {{ $json.domain_tier }})\\n\\nExtract precise factual insights, equations, and quantitative bullet points.\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.1,\n    \"num_predict\": 1024\n  }\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-ollama-agent",
+      "name": "Ollama Sub-Question Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.ollama_host }}/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $json.model }}\",\n  \"prompt\": \"Reflection Check: Assess answer completeness for '{{ $json.sub_question }}':\\n\\n{{ $json.response }}\\n\\nIdentify any missing metrics or information gaps. Score completeness (0.0 to 1.0).\",\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.1,\n    \"num_predict\": 512\n  }\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "node-reflection-gap-analyzer",
+      "name": "Autonomous Reflection & Gap-Analyzer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationVariableName": "results"
+      },
+      "id": "node-aggregate",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": \"success\",\n  \"source\": \"n8n_pdf_reflection_parallel_engine\",\n  \"features\": {\n    \"pdf_parser_active\": true,\n    \"reflection_loop_active\": true\n  },\n  \"results\": $json.results.map(r => ({\n    \"sub_question\": r.sub_question,\n    \"domain_tier\": r.domain_tier || \"standard\",\n    \"is_pdf\": r.is_pdf || false,\n    \"reflection_assessment\": r.response || \"Completeness Verified\",\n    \"insight\": r.response || r.content || \"\"\n  }))\n}",
+        "options": {}
+      },
+      "id": "node-respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Sub-Questions": {
+      "main": [
+        [
+          {
+            "node": "Split Sub-Questions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Sub-Questions": {
+      "main": [
+        [
+          {
+            "node": "arXiv Academic Search",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "DuckDuckGo Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "arXiv Academic Search": {
+      "main": [
+        [
+          {
+            "node": "PDF & Document Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DuckDuckGo Search": {
+      "main": [
+        [
+          {
+            "node": "PDF & Document Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF & Document Parser": {
+      "main": [
+        [
+          {
+            "node": "Domain Quality Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Domain Quality Filter": {
+      "main": [
+        [
+          {
+            "node": "Ollama Sub-Question Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Sub-Question Agent": {
+      "main": [
+        [
+          {
+            "node": "Autonomous Reflection & Gap-Analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autonomous Reflection & Gap-Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

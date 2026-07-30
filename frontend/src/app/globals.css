@@ -1,0 +1,236 @@
+@import "tailwindcss";
+
+:root {
+  --background: #000000;       /* pure black */
+  --foreground: #FFFFFF;       /* pure white */
+  --surface: #09090B;          /* deep zinc surface */
+  --card: #121215;             /* card background */
+  --panel: rgba(18, 18, 21, 0.95);
+  --panel-soft: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.16);
+  --line: rgba(255, 255, 255, 0.14);
+  --line-strong: rgba(255, 255, 255, 0.32);
+  --brand-primary: #FFFFFF;    /* crisp white */
+  --brand-secondary: #E4E4E7;  /* silver zinc */
+  --brand-muted: #71717A;      /* mid zinc */
+  --accent-warm: #FFFFFF;
+  --accent-ember: #FAFAFA;     /* bright white */
+  --accent-sage: #E4E4E7;      /* silver */
+  --accent-gold: #D4D4D8;      /* light zinc */
+  --accent-emerald: #FFFFFF;
+  --signal: #FFFFFF;
+  --signal-bright: #FFFFFF;
+  --ok: #FFFFFF;
+  --text-1: #FFFFFF;           /* pure white */
+  --text-2: #A1A1AA;           /* silver gray */
+  --text-3: #71717A;           /* dark silver */
+  --text-mono: #A1A1AA;
+
+  --shadow-glow: 0 0 35px rgba(255, 255, 255, 0.2);
+  --shadow-card: 0 18px 60px rgba(0, 0, 0, 0.9);
+  --shadow-elevated: 0 28px 90px rgba(0, 0, 0, 0.95);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-primary: var(--brand-primary);
+  --color-muted: var(--brand-muted);
+  --color-accent: var(--accent-warm);
+  --color-text-1: var(--text-1);
+  --color-text-2: var(--text-2);
+  --color-text-3: var(--text-3);
+
+  --font-display: var(--font-syne), "Syne", sans-serif;
+  --font-body: var(--font-outfit), "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+}
+
+.background-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+body {
+  background: #000000;
+  color: #FFFFFF;
+  font-family: var(--font-body);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(255, 255, 255, 0.04) 0%, transparent 60%),
+    linear-gradient(135deg, #000000 0%, #050505 50%, #000000 100%);
+  background-attachment: fixed;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: 0;
+  color: #FFFFFF;
+}
+
+code, pre, .font-mono {
+  font-family: var(--font-mono);
+}
+
+/* ——— Black & White Animations ——— */
+@keyframes beam-flow {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes pulse-glow-white {
+  0%, 100% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.2), inset 0 0 15px rgba(255, 255, 255, 0.1); }
+  50% { box-shadow: 0 0 35px rgba(255, 255, 255, 0.45), inset 0 0 25px rgba(255, 255, 255, 0.25); }
+}
+
+@keyframes shimmer-white {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-beam-flow {
+  stroke-dasharray: 6 6;
+  animation: beam-flow 1.5s linear infinite;
+}
+
+.animate-pulse-white {
+  animation: pulse-glow-white 2.5s infinite ease-in-out;
+}
+
+/* Glass & Card Polish */
+.card-hover-tilt {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.card-hover-tilt:hover {
+  transform: translateY(-3px) scale(1.01);
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.2) !important;
+}
+
+.theme-card-bw {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(12, 12, 15, 0.95) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ——— Scrollbar ——— */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* ——— Print Styles ——— */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .prose {
+    color: #000000 !important;
+  }
+}
+
+/* ——— Markdown Prose ——— */
+.prose {
+  --tw-prose-body: #D4D4D8;
+  --tw-prose-headings: #FFFFFF;
+  --tw-prose-links: #FFFFFF;
+  --tw-prose-bold: #FFFFFF;
+  --tw-prose-code: #FFFFFF;
+  --tw-prose-quote-borders: #FFFFFF;
+  --tw-prose-quotes: #A1A1AA;
+  --tw-prose-hr: rgba(255, 255, 255, 0.2);
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  font-family: var(--font-display);
+  color: #FFFFFF;
+  margin-top: 2em;
+  margin-bottom: 0.75em;
+}
+
+.prose p {
+  margin-bottom: 1em;
+  line-height: 1.75;
+  color: #E4E4E7;
+}
+
+.prose a {
+  color: #FFFFFF;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.prose blockquote {
+  border-left: 3px solid #FFFFFF;
+  padding-left: 1em;
+  color: #A1A1AA;
+  font-style: italic;
+}
+
+.prose code {
+  background: rgba(255, 255, 255, 0.12);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.88em;
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.prose pre {
+  background: #09090B !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+.prose pre code {
+  background: transparent;
+  padding: 0;
+  color: #FFFFFF;
+  border: none;
+}
+
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5em 0;
+}
+
+.prose th, .prose td {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+}
+
+.prose th {
+  background: #121215;
+  font-weight: 600;
+  color: #FFFFFF;
+}

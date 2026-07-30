@@ -1,0 +1,236 @@
+# Deep Research Report: What Is Quantum Computing?
+
+**Date Generated:** July 29, 2026 · **Scope:** Multi-dimensional analysis · **Sources Consulted:** 20 · **Sub-Questions:** 6
+
+---
+
+## Executive Summary
+
+This report examines **What is quantum computing?** across the following dimensions:
+
+- Which companies lead in quantum computing and what is their market position?
+- What measurable ROI and business impact do quantum computing solutions show?
+- How do the top quantum computing platforms compare on features and performance?
+- What specific use cases and real deployments of quantum computing exist?
+- What are the key technical capabilities that define quantum computing systems?
+- What challenges and limitations affect quantum computing adoption?
+
+According to QuEra’s 2026 Quantum Readiness Report, 88% of UK respondents and 82% of US respondents believe their countries are well positioned to lead in quantum computing [^15]. Once quantum computers demonstrate the ability to solve these problems faster than classical computers, for quantum computing will reach $8.28 billion by 2032 [^6]. As we look ahead to 2026, we're standing at the intersection of unprecedented technological transformation and evolving market dynamics 🚀 From AI and quantum computing reshaping entire industries to a potentially more favorable dealmaking environment with reduced regulatory challenges and lower financing costs, the next few years promise to be pivotal for business strategy [^8].
+
+---
+
+## Introduction / Context
+
+This report investigates 20 web sources across multiple domains to answer the research question. According to QuEra’s 2026 Quantum Readiness Report, 88% of UK respondents and 82% of US respondents believe their countries are well positioned to lead in quantum computing [^15]. Once quantum computers demonstrate the ability to solve these problems faster than classical computers, for quantum computing will reach $8.28 billion by 2032 [^6].
+
+---
+
+## Research Methodology and Source Base
+
+The research pipeline decomposed the query into 6 tracks and searched each track separately so that the final report would not collapse into a generic overview. Retrieved sources were deduplicated by URL, grouped by track, and then mined for source-grounded evidence sentences. The current run consulted 20 sources across 11 domains, including analyticsindiamag.com, bluequbit.io, linkedin.com, okoone.com, quantum.cloud.ibm.com, quantumai.google, quantumzeitgeist.com, quera.com.
+
+The synthesis emphasizes triangulation. A claim is treated as stronger when multiple independent domains point in the same direction, when a source provides concrete dates or quantitative evidence, or when it comes from primary documentation. A claim is treated as weaker when it appears only in marketing language, lacks methodology, or projects future outcomes without measurable assumptions.
+
+---
+
+## Key Findings & Analysis
+
+### Which companies lead in quantum computing and what is their market position?
+
+According to QuEra’s 2026 Quantum Readiness Report, 88% of UK respondents and 82% of US respondents believe their countries are well positioned to lead in quantum computing [^15]. In QuEra’s 2026 Quantum Readiness Report, 88% of UK executives believe the country is well-positioned to lead in this field [^15].
+
+UK leads in quantum but struggles to find the talent Okoone UK leads in quantum but struggles to find the talent Quantum computing is gaining ground fast, but execution is blocked by shrinking talent pools, rising expectations, and cautious budgets [^15]. For leadership teams, the message is clear: if your business depends on modeling dynamic systems with high levels of uncertainty and interdependencies, quantum computing is moving from an interesting topic to a core R&D consideration [^15].
+
+IonQ IonQ, Inc. is an American quantum computing hardware and software company headquartered in College Park, Maryland [^16]. The company develops general-purpose trapped ion quantum computers and accompanying software to generate, optimize, and execute quantum circuits [^16].
+
+Quantum mechanics Quantum mechanics, also known as quantum physics, is the fundamental physical theory that describes the behavior of matter and of light; the behaviors it models typically occur at and below the scale of atoms, and have been described as peculiar and mysterious [^17]. Its concepts and methods have been applied across many disciplines, including quantum chemistry, quantum biology, quantum field theory, quantum technology, and quantum information science [^17].
+
+### Source Notes
+
+- [^15] **UK leads in quantum but struggles to find the talent | Okoone** (okoone.com) — UK leads in quantum but struggles to find the talent Okoone UK leads in quantum but struggles to find the talent Quantum computing is gaining ground fast, but execution is blocked by shrinking talent pools, rising expectations, and cautious
+- [^16] **IonQ** (wikipedia.org) — IonQ IonQ, Inc. is an American quantum computing hardware and software company headquartered in College Park, Maryland.
+- [^17] **Quantum mechanics** (wikipedia.org) — Quantum mechanics Quantum mechanics, also known as quantum physics, is the fundamental physical theory that describes the behavior of matter and of light; the behaviors it models typically occur at and below the scale of atoms, and have bee
+
+### What measurable ROI and business impact do quantum computing solutions show?
+
+As we look ahead to 2026, we're standing at the intersection of unprecedented technological transformation and evolving market dynamics 🚀 From AI and quantum computing reshaping entire industries to a potentially more favorable dealmaking environment with reduced regulatory challenges and lower financing costs, the next few years promise to be pivotal for business strategy [^8]. How to prepare for quantum computing's impact on business This title was summarized by AI from the post below [^8]. For example, a quantum of light is a photon, and a quantum of electricity is an German physicist Max Planck introduced the modern concept of quantum in physics in 1901 [^6].
+
+A single photon quantum of light can simultaneously go through two slits in a piece of material, as shown in the double-slit experiment. is a famous thought experiment that describes a quantum particle in superposition, or the state where the probability waveform hasn't collapsed, and where multiple states or probabilities can exist simultaneously [^6]. By programming the initial conditions of the qubit, quantum computing can solve a real-world problem when the superposition state collapses and where multiple coexisting probabilities resolve into a single outcome [^6]. Quantum systems from Google, IBM, Microsoft and others benchmark quantum computer performance by measuring factors such as volume, which in quantum computing means the amount of computational space a circuit can process while still being able to return an accurate result [^6].
+
+Our stack also provides resources for error correction and applications research, supporting comprehensive quantum computing research and development efforts [^7]. Comment 'QUANTUM' for our comprehensive Post-Quantum Business Readiness Playbook. 📊 As the U.S. technology industry continues to face disruption — from rapid advances in AI to geopolitical uncertainty — oversight by boards of directors has become both more critical and more complex [^8]. A major investment firm recently initiated coverage on a leading quantum computing company with a buy rating, citing roadmap execution, commercial traction, and t [^8].
+
+Our focus encompasses the seamless integration of hardware and software components — from quantum processors, control and decoding hardware and cryostats to the operating system and user-facing software [^7]. We believe this integrated methodology supports the acceleration of advancements in both the capabilities of quantum systems and the potential applications they can power [^7]. We use metrics that evaluate the entire quantum computing system holistically, not just individual components [^7].
+
+### Source Notes
+
+- [^8] **How to prepare for quantum computing's impact on business** (linkedin.com) — How to prepare for quantum computing's impact on business This title was summarized by AI from the post below.
+- [^6] **What is quantum in physics and computing?|Definition from TechTarget** (techtarget.com) — Definition from TechTarget , is the smallest discrete unit of any physical entity.
+- [^7] **Quantum Computer | Google Quantum AI** (quantumai.google) — Our focus encompasses the seamless integration of hardware and software components — from quantum processors, control and decoding hardware and cryostats to the operating system and user-facing software.
+
+### How do the top quantum computing platforms compare on features and performance?
+
+With its extensive features, ease of use, and cost-effectiveness, BlueQubit is an excellent choice for anyone looking to explore the fascinating world of quantum computing [^11]. The platform provides users with a variety of features to support quantum computing research and development, including scalability, reliability, and cost-effectiveness [^11]. This makes it perfect for researchers and developers working across different quantum frameworks. qBraid offers a range of useful tools for those who are new to the field, though it may have fewer advanced features than some of the other platforms on our list [^11].
+
+First Quantum Neural Network Implemented Across Two Computing Platforms Researchers have implemented a quantum neural network across two different quantum computing platforms, trapped ions and superconducting qubits, a step toward testing whether such systems can live up to their theoretical promise [^14]. The work, detailed in Physics 19, 100, uses a network that can be tuned between fully classical and fully quantum behaviour, which let the team study how each hardware architecture shapes performance [^14]. This article highlights the cloud-based quantum computing software platforms you can use to dive into this exciting field [^11].
+
+The experiment was carried out by researchers at the Jülich Supercomputing Centre and the University of Cologne, who are probing the practical limits of quantum neural networks against established benchmarks [^14]. As quantum devices mature, tunable networks like this one could become a standard way to measure how real processors affect emerging quantum learning models. on Quantum Zeitgeist for the latest breakthroughs in qubits, hardware, algorithms, and industry deals [^14]. URL Source: Most teams discover their quantum plans crumble during initial proofs of concept, not from analyst decks [^12].
+
+From my experience in the startup ecosystem, the biggest wins come when you match hardware modality to problem type, for example, using trapped-ion systems with mid-circuit measurement, annealing hybrids for large QUBO optimization, and photonics for Gaussian boson sampling validated in Nature [^12]. The market is no longer theory only, with spending projected to hit $7.6 billion by 2027 per IDC's forecast [^12]. You will learn where each shines, what it costs, and how to avoid expensive dead ends [^12].
+
+### Source Notes
+
+- [^11] **Top 9 Quantum Computing Software Platforms** (bluequbit.io) — Quantum computing has rapidly become a pivotal area of research in the technology industry.
+- [^14] **First Quantum Neural Network Implemented Across Two Computing...** (quantumzeitgeist.com) — First Quantum Neural Network Implemented Across Two Computing Platforms Researchers have implemented a quantum neural network across two different quantum computing platforms, trapped ions and superconducting qubits, a step toward testing w
+- [^12] **Top Quantum Computing Platforms In 2026** (startupstash.com) — URL Source: Most teams discover their quantum plans crumble during initial proofs of concept, not from analyst decks.
+
+### What specific use cases and real deployments of quantum computing exist?
+
+Additional near-term use cases backed by published work include dynamic deep hedging, algorithmic bond trading, fraud detection with quantum kernels, and credit risk analysis with iterative amplitude estimation [^2]. Institution-specific use cases mapped to neutral-atom strengths, platform constraints, and ROI scenarios tied to the QuEra roadmap. (led by QuEra with partner support) [^2]. Quantum amplitude estimation provides a quadratic speedup for Monte Carlo simulations used in option pricing and value-at-risk calculations [^2].
+
+Shor's, Grover's, and HHL were all designed before anyone knew what real quantum hardware would look like [^2]. Quantum key distribution Quantum key distribution (QKD) is a secure communication method that implements a cryptographic protocol based on the laws of quantum mechanics, specifically quantum entanglement, the measurement-disturbance principle, and the no-cloning theorem [^1]. Quantum computing A quantum computer is a computer that represents and processes information using quantum states [^3].
+
+For example, a large-scale quantum computer could break widely used encryption schemes and aid physicists in performing physical simulations [^3]. The goal of QKD is to enable two parties to produce a shared random secret key known only to them, which then can be used to encrypt and decrypt messages [^1]. The QKD process should not be confused with quantum cryptography in general [^1].
+
+However, current hardware implementations of quantum computation are largely experimental and suitable for only certain specialized tasks [^3]. This means, when QKD is correctly implemented, one would need to violate fundamental physical principles to break a quantum protocol [^1]. Quantum computers have the potential to complete some calculations exponentially faster than classical computers [^3].
+
+### Source Notes
+
+- [^2] **quera.com/blog-posts/quantum-computing-for-financial-services-two...** (quera.com) — Financial services leaders evaluating quantum computing face a coin with two sides.
+- [^1] **Quantum key distribution** (wikipedia.org) — Quantum key distribution Quantum key distribution (QKD) is a secure communication method that implements a cryptographic protocol based on the laws of quantum mechanics, specifically quantum entanglement, the measurement-disturbance princip
+- [^3] **Quantum computing** (wikipedia.org) — Quantum computing A quantum computer is a computer that represents and processes information using quantum states.
+
+### What are the key technical capabilities that define quantum computing systems?
+
+By utilizing the model—where computing resources are delivered over the internet—quantum cloud services offer a platform where users can access quantum computing capabilities on demand [^3]. By leveraging these principles, quantum cloud services can solve complex problems more efficiently than classical computing methods, offering new opportunities for innovation across various industries. are distinct from those of traditional cloud computing, owing to the unique computational capabilities offered by quantum technology [^3]. Quantum systems from Google, IBM, Microsoft and others benchmark quantum computer performance by measuring factors such as volume, which in quantum computing means the amount of computational space a circuit can process while still being able to return an accurate result [^1].
+
+Once quantum computers demonstrate the ability to solve these problems faster than classical computers, for quantum computing will reach $8.28 billion by 2032 [^1]. Quantum cybersecurity uses quantum computing and the laws of quantum mechanics and computer science to develop modern systems that secure digital communication [^1]. How to prepare for post-quantum computing security Quantum datacentre deployments: How they are supporting evolving compute projects Quantum engineering is a technological field that focuses on the principles of quantum physics [^1].
+
+This model eliminates the need for significant upfront investments in specialized hardware and allows users to experiment and innovate without the traditional barriers associated with quantum computing [^3]. As quantum cloud services continue to develop, they promise to make quantum computing more accessible and practical for various applications, heralding a new era of innovation and discovery. aligns seamlessly with the broader trends of digital transformation and technological advancement that are sweeping across industries globally [^3]. We can help you seize opportunity from the world of quantum bits or qubits, quantum entanglement, quantum processors, quantum cloud computing, quantized energy levels, quantum algorithms – or any other quantum keyword you discover [^2].
+
+Realising the business benefits of quantum computing will be hard – and require a radical approach to computer science [^2]. In conventional computer systems each bit is either zero or one, but in quantum computers ‘qubits’ can be set to zero and one at the same time [^2]. The transformative promise of quantum computing represents a seismic technology shift that will render a good part of current cryptographic standards meaningless [^2].
+
+### Source Notes
+
+- [^1] **Quantum Cloud Services** (meegle.com) — Gain insights into Quantum cloud services and their profound impact on the field of quantum computing, including technological innovations and practical applications.
+- [^2] **What is quantum in physics and computing?|Definition from...** (techtarget.com) — Definition from TechTarget , is the smallest discrete unit of any physical entity.
+- [^3] **Quantum technology consultancy services | Cambridge Consultants** (cambridgeconsultants.com) — Quantum technology consultancy services Cambridge Consultants Quantum technology will change computing, sensing and communication forever – heralding a transformation of business and society.
+
+### What challenges and limitations affect quantum computing adoption?
+
+Quantum adoption creates the need for cross-enterprise literacy The study also found that UK business leaders still face barriers to broader quantum computing implementation, including cost concerns (46%), lack of internal expertise (33%) and limited awareness (30%) [^1]. Surveyed organisations actively engaging with quantum computing estimate nearly twice the commercial value of those waiting for the technology to mature and are more likely to believe it is already delivering value today: 37%, compared with 16% of business leaders overall [^1]. Optimisation emerges as the clearest near-term opportunity Surveyed UK business leaders identified several areas that would benefit from improved optimisation, including workforce scheduling (90%), resource allocation (89%), supply chain optimisation (88%) and manufacturing processes (82%) [^1].
+
+Against that backdrop, 87% said quantum computing could help optimise AI-related processes and complex computational challenges [^1]. The theory oversimplifies the adoption of supply-push of technology features with quantum computing to demand-pull of organizational needs, the quantum computing diffusion doesn’t just stop at interactions between traditional suppliers but in the actual scenario, it is also affected by external pressures and powerful industry associations which the theory doesn’t factor in [^2]. Volkswagen's Innovative Adoption of Quantum Computing in Traffic Optimization As a Master's student, I've had the opportunity to dive into a case study that blends two of the most exciting spaces in tech today: - a global automotive giant, has become one of the early adopters of to optimize traffic flow, reduce urban congestion, and pioneer more sustainable mobility solutions [^2].
+
+However, the daunting task for many cities would be the ‘complexity’ of quantum computing, which remains one of the primary challenges to its widespread adoption [^2]. A quantum computing is similar to classic computing, however, the primary difference lies in how they process information, whereas classical computers use binary bits of (0s and 1s) to represent the on and off-state of the current, they use which are more like waves which can exist in both stages simultaneously as a property known as [^2]. Quantum key distribution Quantum key distribution (QKD) is a secure communication method that implements a cryptographic protocol based on the laws of quantum mechanics, specifically quantum entanglement, the measurement-disturbance principle, and the no-cloning theorem [^3].
+
+The goal of QKD is to enable two parties to produce a shared random secret key known only to them, which then can be used to encrypt and decrypt messages [^3]. This means, when QKD is correctly implemented, one would need to violate fundamental physical principles to break a quantum protocol [^3]. The QKD process should not be confused with quantum cryptography in general [^3].
+
+### Source Notes
+
+- [^1] **The Quantum Effect: 41% of Large UK Enterprises Surveyed Expect...** (dwavequantum.com) — That expectation is also reflected in action: 65% of the UK business leaders surveyed are already adopting or testing quantum computing.
+- [^2] **Volkswagen's Innovative Adoption of Quantum Computing in Traffic...** (linkedin.com) — Volkswagen's Innovative Adoption of Quantum Computing in Traffic Optimization As a Master's student, I've had the opportunity to dive into a case study that blends two of the most exciting spaces in tech today: - a global automotive giant, 
+- [^3] **Quantum key distribution** (wikipedia.org) — Quantum key distribution Quantum key distribution (QKD) is a secure communication method that implements a cryptographic protocol based on the laws of quantum mechanics, specifically quantum entanglement, the measurement-disturbance princip
+
+---
+
+## Key Statistics and Data Highlights
+
+- QuEra and Harvard demonstrated 48 logical qubits in December 2023. path to thousands of logical qubits, general-purpose programmability, energy and footprint requirements, and production SLAs backed by real operating experience. [^2].
+- Quantum Break Quantum Break is a 2016 action-adventure third-person shooter video game developed by Remedy Entertainment and published by Microsoft Studios. [^4].
+- For example, a quantum of light is a photon, and a quantum of electricity is an German physicist Max Planck introduced the modern concept of quantum in physics in 1901. [^6].
+- Once quantum computers demonstrate the ability to solve these problems faster than classical computers, for quantum computing will reach $8.28 billion by 2032. [^6].
+- McKinsey estimates 5,000 quantum computers will be operational by 2030, yet organizations lack quantum-literate leaders across all functions. [^8].
+- Find out what this means for board composition, governance practices, and more in the 2025 U.S. [^8].
+- As we look ahead to 2026, we're standing at the intersection of unprecedented technological transformation and evolving market dynamics 🚀 From AI and quantum computing reshaping entire industries to a potentially more favorable dealmaking environment with reduced regulatory chall [^8].
+- IBM’s magnum opus, however, is Condor, a 1,121-qubit quantum processor it launched in December 2023, aiming to achieve practical quantum advantage by 2026. [^11].
+- The market is no longer theory only, with spending projected to hit $7.6 billion by 2027 per IDC's forecast. [^12].
+- In QuEra’s 2026 Quantum Readiness Report, 88% of UK executives believe the country is well-positioned to lead in this field. [^15].
+- In 2026, decision-makers are shifting their questions, away from “Will this technology matter?” toward “When and where does it drive real value?” That change isn’t trivial. [^15].
+- According to QuEra’s 2026 Quantum Readiness Report, 62% of organizations reported hitting moderate to critical limits with classical systems, particularly in workloads tied to simulation. [^15].
+
+---
+
+## Strategic Implications for Researchers and Decision-Makers
+
+According to QuEra’s 2026 Quantum Readiness Report, 88% of UK respondents and 82% of US respondents believe their countries are well positioned to lead in quantum computing [^15]. As we look ahead to 2026, we're standing at the intersection of unprecedented technological transformation and evolving market dynamics 🚀 From AI and quantum computing reshaping entire industries to a potentially more favorable dealmaking environment with reduced regulatory challenges and lower financing costs, the next few years promise to be pivotal for business strategy [^8]. Once quantum computers demonstrate the ability to solve these problems faster than classical computers, for quantum computing will reach $8.28 billion by 2032 [^6]. IBM’s magnum opus, however, is Condor, a 1,121-qubit quantum processor it launched in December 2023, aiming to achieve practical quantum advantage by 2026 [^11].
+
+---
+
+## Evidence Verification Notes
+
+**Extraction failures**
+- None detected in the sampled source set.
+
+**Numeric claim review**
+- The following figures/dates appear in the draft but were not found in source text. They may be transcription errors or unsupported claims:
+- 37% 
+- 2032 
+- 82% 
+- 41% 
+- 65% 
+- 88% 
+
+**Entity verification**
+- Potentially unverified proper nouns were not found in the sampled source text:
+- Google Quantum
+- First Quantum Neural Network Implemented Across Two Computing Platforms Researchers
+- First Quantum Neural Network Implemented Across Two Computing Platforms Researchers
+- Top Quantum Computing Platforms In
+- Quantum Cloud Services
+- Cambridge Consultants
+
+---
+
+## Evidence Matrix
+
+| Ref | Source | Domain | Evidence value |
+|---|---|---|---|
+| [^1] | Quantum key distribution | wikipedia.org | Quantum key distribution Quantum key distribution (QKD) is a secure communication method that implements a cryptographic protocol based on the laws of quantum mechanics, specifically quantum entanglement, the measurement |
+| [^2] | quera.com/blog-posts/quantum-computing-for-financial-services-two... | quera.com | Financial services leaders evaluating quantum computing face a coin with two sides. |
+| [^3] | Quantum computing | wikipedia.org | Quantum computing A quantum computer is a computer that represents and processes information using quantum states. |
+| [^4] | Quantum Break | wikipedia.org | Quantum Break Quantum Break is a 2016 action-adventure third-person shooter video game developed by Remedy Entertainment and published by Microsoft Studios. |
+| [^5] | Quantum programming | wikipedia.org | Quantum programming Quantum programming refers to the process of designing and implementing algorithms that operate on quantum systems, typically using quantum circuits composed of quantum gates, measurements, and classi |
+| [^6] | What is quantum in physics and computing? Definition from TechTarget | techtarget.com | Definition from TechTarget , is the smallest discrete unit of any physical entity. |
+| [^7] | Quantum Computer   Google Quantum AI | quantumai.google | Our focus encompasses the seamless integration of hardware and software components — from quantum processors, control and decoding hardware and cryostats to the operating system and user-facing software. |
+| [^8] | How to prepare for quantum computing's impact on business | linkedin.com | How to prepare for quantum computing's impact on business This title was summarized by AI from the post below. |
+| [^9] | IBM Quantum Platform | quantum.cloud.ibm.com | Get access to IBM quantum computers, Qiskit documentation, and learning resources all in one place. |
+| [^10] | How Can India Lead in Quantum...   Analytics India Magazine | analyticsindiamag.com | URL Source: []( 'India Can be a 600-Pound Gorilla of Quantum Applications' 'India Can be a 600-Pound Gorilla of Quantum Applications' One of the distinguishing features of Quantum Brilliance’s quantum systems is their ab |
+| [^11] | Top 9 Quantum Computing Software Platforms | bluequbit.io | Quantum computing has rapidly become a pivotal area of research in the technology industry. |
+| [^12] | Top Quantum Computing Platforms In 2026 | startupstash.com | URL Source: Most teams discover their quantum plans crumble during initial proofs of concept, not from analyst decks. |
+
+---
+
+## Future Outlook
+
+According to QuEra’s 2026 Quantum Readiness Report, 88% of UK respondents and 82% of US respondents believe their countries are well positioned to lead in quantum computing [^15]. As we look ahead to 2026, we're standing at the intersection of unprecedented technological transformation and evolving market dynamics 🚀 From AI and quantum computing reshaping entire industries to a potentially more favorable dealmaking environment with reduced regulatory challenges and lower financing costs, the next few years promise to be pivotal for business strategy [^8]. The market is transitioning from experimental adoption to a results-oriented “show me” phase Quantum computing used to be all about potential [^15]. Once quantum computers demonstrate the ability to solve these problems faster than classical computers, for quantum computing will reach $8.28 billion by 2032 [^6].
+
+---
+
+## Limitations and Open Questions
+
+The current analysis does not have sufficient source coverage to identify knowledge gaps with confidence. Key limitations include the absence of peer-reviewed academic sources, proprietary datasets, and non-English material in the retrieved corpus.
+
+---
+
+## References
+
+[^1]: [Quantum key distribution](https://en.wikipedia.org/wiki/Quantum_key_distribution) - *wikipedia.org*
+[^2]: [quera.com/blog-posts/quantum-computing-for-financial-services-two...](https://www.quera.com/blog-posts/quantum-computing-for-financial-services-two-clocks-are-running) - *quera.com*
+[^3]: [Quantum computing](https://en.wikipedia.org/wiki/Quantum_computing) - *wikipedia.org*
+[^4]: [Quantum Break](https://en.wikipedia.org/wiki/Quantum_Break) - *wikipedia.org*
+[^5]: [Quantum programming](https://en.wikipedia.org/wiki/Quantum_programming) - *wikipedia.org*
+[^6]: [What is quantum in physics and computing?|Definition from TechTarget](https://www.techtarget.com/whatis/definition/quantum) - *techtarget.com*
+[^7]: [Quantum Computer | Google Quantum AI](https://quantumai.google/quantumcomputer) - *quantumai.google*
+[^8]: [How to prepare for quantum computing's impact on business](https://www.linkedin.com/posts/dianakearns_quantumcomputing-techstrategy-innovation-activity-7396947889333116928-NwO6) - *linkedin.com*
+[^9]: [IBM Quantum Platform](https://quantum.cloud.ibm.com/) - *quantum.cloud.ibm.com*
+[^10]: [How Can India Lead in Quantum... | Analytics India Magazine](https://analyticsindiamag.com/ai-trends/india-can-be-a-600-pound-gorilla-of-quantum-applications-quantum-brilliance) - *analyticsindiamag.com*
+[^11]: [Top 9 Quantum Computing Software Platforms](https://www.bluequbit.io/blog/quantum-computing-software-platforms) - *bluequbit.io*
+[^12]: [Top Quantum Computing Platforms In 2026](https://startupstash.com/top-quantum-computing-platforms/) - *startupstash.com*
+[^13]: [Google Cloud Platform](https://en.wikipedia.org/wiki/Google_Cloud_Platform) - *wikipedia.org*
+[^14]: [First Quantum Neural Network Implemented Across Two Computing...](https://quantumzeitgeist.com/physics-19-quantum-neural-network-first/) - *quantumzeitgeist.com*
+[^15]: [UK leads in quantum but struggles to find the talent | Okoone](https://www.okoone.com/spark/technology-innovation/uk-leads-in-quantum-but-struggles-to-find-the-talent/) - *okoone.com*
+[^16]: [IonQ](https://en.wikipedia.org/wiki/IonQ) - *wikipedia.org*
+[^17]: [Quantum mechanics](https://en.wikipedia.org/wiki/Quantum_mechanics) - *wikipedia.org*
+[^18]: [Sridhar Tayur](https://en.wikipedia.org/wiki/Sridhar_Tayur) - *wikipedia.org*
+[^19]: [Microsoft](https://en.wikipedia.org/wiki/Microsoft) - *wikipedia.org*
+[^20]: [Noisy intermediate-scale quantum computing](https://en.wikipedia.org/wiki/Noisy_intermediate-scale_quantum_computing) - *wikipedia.org*

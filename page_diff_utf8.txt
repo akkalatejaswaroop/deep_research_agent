@@ -1,0 +1,527 @@
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 3f36f7c..2ff4c9e 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -1,65 +1,464 @@
+-import Image from "next/image";
++"use client";
++
++import React, { useEffect, useMemo, useRef, useState } from "react";
++import {
++  Activity,
++  BarChart3,
++  BookOpen,
++  CheckCircle2,
++  Clock3,
++  DatabaseZap,
++  Download,
++  Eye,
++  EyeOff,
++  FileJson,
++  FileText,
++  FlaskConical,
++  Gauge,
++  Loader2,
++  Network,
++  Play,
++  Search,
++  ShieldCheck,
++  Sparkles,
++  Target,
++} from "lucide-react";
++import ReactMarkdown from "react-markdown";
++import remarkGfm from "remark-gfm";
++import rehypeRaw from "rehype-raw";
++import { AnimatePresence, motion } from "framer-motion";
++import MetricsDashboard from "@/components/MetricsDashboard";
++import BackgroundCanvas from "@/components/BackgroundCanvas";
++
++const SUGGESTED_TOPICS = [
++  "How will solid-state batteries change EV manufacturing by 2030?",
++  "AI agent security risks for enterprise software teams",
++  "Latest progress in CRISPR therapies and regulatory approvals",
++  "Quantum computing impact on post-quantum cryptography migration",
++];
++
++const GRAPH_NODES = [
++  { id: "planner", label: "Plan", icon: Target },
++  { id: "memory_retrieval", label: "Memory", icon: DatabaseZap },
++  { id: "searcher", label: "Search", icon: Search },
++  { id: "filter", label: "Rank", icon: Gauge },
++  { id: "synthesis", label: "Synthesis", icon: FlaskConical },
++  { id: "gap_detector", label: "Gaps", icon: ShieldCheck },
++  { id: "citation_mapper", label: "Citations", icon: BookOpen },
++  { id: "report_node_id", label: "Report", icon: FileText },
++  { id: "evaluator", label: "Score", icon: BarChart3 },
++];
++
++const NODE_COPY: Record<string, string> = {
++  planner: "Decomposes your question into targeted research tracks.",
++  memory_retrieval: "Pulls useful lessons from previous runs.",
++  searcher: "Runs parallel source discovery and extraction.",
++  filter: "Ranks evidence by relevance, specificity, and authority.",
++  synthesis: "Combines source-grounded answers across sub-questions.",
++  gap_detector: "Looks for missing evidence and weak coverage.",
++  citation_mapper: "Checks citation mapping before the final draft.",
++  report_node_id: "Assembles the professional research report.",
++  evaluator: "Scores quality and stores lessons for future runs.",
++};
++
++type DashboardMetrics = React.ComponentProps<typeof MetricsDashboard>["metrics"];
++
++function normalizeHost(url: string) {
++  try {
++    return new URL(url).hostname.replace(/^www\./, "");
++  } catch {
++    return url;
++  }
++}
++
++function stageStatus(activeNode: string, completedNodes: Set<string>, nodeId: string) {
++  if (activeNode === nodeId) return "active";
++  if (completedNodes.has(nodeId)) return "complete";
++  return "idle";
++}
+ 
+ export default function Home() {
++  const [query, setQuery] = useState("");
++  const [paragraphs, setParagraphs] = useState(3);
++  const [subQuestions, setSubQuestions] = useState(8);
++  const [depth, setDepth] = useState(1);
++  const [complexity, setComplexity] = useState(1);
++  const [isLoading, setIsLoading] = useState(false);
++  const [report, setReport] = useState<string | null>(null);
++  const [sources, setSources] = useState<string[]>([]);
++  const [logs, setLogs] = useState<string[]>([]);
++  const [activeNode, setActiveNode] = useState("planner");
++  const [completedNodes, setCompletedNodes] = useState<Set<string>>(new Set());
++  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
++  const [sessionId, setSessionId] = useState("");
++  const [showMetrics, setShowMetrics] = useState(false);
++  const [exportFormat, setExportFormat] = useState<"pdf" | null>(null);
++
++  const logsEndRef = useRef<HTMLDivElement>(null);
++  const reportRef = useRef<HTMLDivElement>(null);
++
++  const activeIndex = Math.max(0, GRAPH_NODES.findIndex((node) => node.id === activeNode));
++  const progress = report ? 100 : Math.round((activeIndex / Math.max(1, GRAPH_NODES.length - 1)) * 100);
++  const uniqueDomains = useMemo(() => Array.from(new Set(sources.map(normalizeHost))).slice(0, 8), [sources]);
++
++  useEffect(() => {
++    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
++  }, [logs]);
++
++  useEffect(() => {
++    if (report) {
++      reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
++    }
++  }, [report]);
++
++  const startResearch = async (overrideQuery?: string) => {
++    const activeQuery = (overrideQuery || query).trim();
++    if (!activeQuery || isLoading) return;
++
++    setQuery(activeQuery);
++    setIsLoading(true);
++    setReport(null);
++    setSources([]);
++    setLogs([]);
++    setActiveNode("planner");
++    setCompletedNodes(new Set());
++    setMetrics(null);
++    setSessionId("");
++    setShowMetrics(false);
++
++    try {
++      const response = await fetch("/api/v1/research/", {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify({
++          query: activeQuery,
++          depth,
++          complexity,
++          paragraphs,
++          subQuestions,
++          options: { paragraphs, subQuestions },
++        }),
++      });
++
++      if (!response.ok) throw new Error(`HTTP ${response.status}`);
++
++      const sessionHeader = response.headers.get("X-Session-Id");
++      if (sessionHeader) setSessionId(sessionHeader);
++
++      const reader = response.body?.getReader();
++      if (!reader) throw new Error("Streaming response was unavailable.");
++
++      const decoder = new TextDecoder("utf-8");
++      let buffer = "";
++
++      while (true) {
++        const { value, done } = await reader.read();
++        if (done) break;
++
++        buffer += decoder.decode(value, { stream: true });
++        const lines = buffer.split("\n");
++        buffer = lines.pop() || "";
++
++        for (const line of lines) {
++          const trimmed = line.trim();
++          if (!trimmed.startsWith("data: ")) continue;
++
++          const data = JSON.parse(trimmed.slice(6));
++          if (data.session_id) setSessionId(data.session_id);
++          if (data.source_urls) setSources(Array.from(new Set(data.source_urls)));
++          if (data.type === "thought" && data.message) setLogs((prev) => [...prev, data.message]);
++
++          if (data.node) {
++            if (data.node === "end") {
++              if (data.report) setReport(data.report);
++              if (data.metrics) setMetrics(data.metrics as DashboardMetrics);
++              if (data.error) setLogs((prev) => [...prev, `Error: ${data.error}`]);
++              setIsLoading(false);
++            } else if (data.node !== "start") {
++              setActiveNode(data.node);
++              setCompletedNodes((prev) => new Set(prev).add(data.node));
++              setLogs((prev) => [...prev, `Phase started: ${data.node.replace(/_/g, " ")}`]);
++            }
++          }
++        }
++      }
++    } catch (err) {
++      setLogs((prev) => [...prev, `Error: ${(err as Error).message}`]);
++      setIsLoading(false);
++    }
++  };
++
++  const downloadPDF = () => {
++    setExportFormat("pdf");
++    window.setTimeout(() => {
++      window.print();
++      setExportFormat(null);
++    }, 100);
++  };
++
+   return (
+-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
+-        <Image
+-          className="dark:invert"
+-          src="/next.svg"
+-          alt="Next.js logo"
+-          width={100}
+-          height={20}
+-          priority
+-        />
+-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
+-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
+-            To get started, edit the page.tsx file.
+-          </h1>
+-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
+-            Looking for a starting point or more instructions? Head over to{" "}
+-            <a
+-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+-              className="font-medium text-zinc-950 dark:text-zinc-50"
+-            >
+-              Templates
+-            </a>{" "}
+-            or the{" "}
+-            <a
+-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+-              className="font-medium text-zinc-950 dark:text-zinc-50"
++    <main className="relative min-h-screen overflow-x-hidden px-4 py-5 text-[var(--text-1)] sm:px-6 lg:px-10 print:bg-white">
++      <div className="fixed inset-0 z-0 pointer-events-none print:hidden">
++        <BackgroundCanvas />
++        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,13,18,0.2),rgba(9,13,18,0.92))]" />
++      </div>
++
++      <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-6">
++        <section className="research-hero grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
++          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="flex min-h-[520px] flex-col justify-between py-6 lg:py-10">
++            <div>
++              <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[var(--line-strong)] bg-[var(--panel-soft)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--text-2)]">
++                <Activity className="h-3.5 w-3.5 text-[var(--signal)]" />
++                Autonomous research workspace
++              </div>
++              <h1 className="max-w-4xl text-5xl font-black leading-[0.93] tracking-normal text-[var(--text-1)] sm:text-6xl lg:text-8xl">
++                Deep Research Agent
++              </h1>
++              <p className="mt-6 max-w-2xl text-base leading-7 text-[var(--text-2)] sm:text-lg">
++                A focused research console for source discovery, evidence ranking, cited synthesis, quality scoring, and reusable learning.
++              </p>
++            </div>
++
++            <div className="mt-10 grid gap-3 sm:grid-cols-3">
++              <Signal label="Evidence first" value={`${sources.length || 0} sources`} icon={<Network className="h-4 w-4" />} />
++              <Signal label="Research plan" value={`${subQuestions} tracks`} icon={<Target className="h-4 w-4" />} />
++              <Signal label="Output depth" value={`${paragraphs} paragraphs`} icon={<FileText className="h-4 w-4" />} />
++            </div>
++          </motion.div>
++
++          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="control-panel self-center">
++            <div className="mb-5 flex items-center justify-between gap-4">
++              <div>
++                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--signal)]">New Investigation</p>
++                <h2 className="mt-1 text-2xl font-bold tracking-normal">Ask a sharp question</h2>
++              </div>
++              <div className="rounded-full border border-[var(--line)] bg-[var(--panel)] p-2 text-[var(--signal)]">
++                <Sparkles className="h-5 w-5" />
++              </div>
++            </div>
++
++            <div className="query-box">
++              <Search className="mt-1 h-5 w-5 shrink-0 text-[var(--text-3)]" />
++              <textarea
++                value={query}
++                onChange={(event) => setQuery(event.target.value)}
++                placeholder="Example: What are the latest enterprise risks and mitigations for autonomous AI agents?"
++                className="min-h-28 w-full resize-none bg-transparent text-base leading-7 text-[var(--text-1)] outline-none placeholder:text-[var(--text-3)]"
++              />
++            </div>
++
++            <div className="mt-5 grid gap-4 sm:grid-cols-2">
++              <RangeControl label="Sub-questions" value={subQuestions} min={3} max={14} onChange={setSubQuestions} />
++              <RangeControl label="Paragraphs per answer" value={paragraphs} min={1} max={5} onChange={setParagraphs} />
++              <RangeControl label="Gap passes" value={depth} min={1} max={3} onChange={setDepth} />
++              <RangeControl label="Complexity" value={complexity} min={1} max={3} onChange={setComplexity} />
++            </div>
++
++            <button
++              onClick={() => startResearch()}
++              disabled={isLoading || !query.trim()}
++              className="mt-6 flex h-13 w-full items-center justify-center gap-2 rounded-lg bg-[var(--signal)] px-5 text-sm font-bold text-[#08110d] transition hover:bg-[var(--signal-bright)] disabled:cursor-not-allowed disabled:opacity-55"
+             >
+-              Learning
+-            </a>{" "}
+-            center.
+-          </p>
+-        </div>
+-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
+-          <a
+-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
+-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+-            target="_blank"
+-            rel="noopener noreferrer"
+-          >
+-            <Image
+-              className="dark:invert"
+-              src="/vercel.svg"
+-              alt="Vercel logomark"
+-              width={16}
+-              height={16}
+-            />
+-            Deploy Now
+-          </a>
+-          <a
+-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
+-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+-            target="_blank"
+-            rel="noopener noreferrer"
+-          >
+-            Documentation
+-          </a>
+-        </div>
+-      </main>
++              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
++              {isLoading ? "Research in progress" : "Start deep research"}
++            </button>
++
++            <div className="mt-5 flex flex-wrap gap-2">
++              {SUGGESTED_TOPICS.map((topic) => (
++                <button key={topic} onClick={() => startResearch(topic)} disabled={isLoading} className="topic-chip">
++                  {topic}
++                </button>
++              ))}
++            </div>
++          </motion.div>
++        </section>
++
++        <AnimatePresence>
++          {(isLoading || logs.length > 0 || report) && (
++            <motion.section initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.75fr)]">
++              <div className="ops-panel">
++                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] pb-4">
++                  <div>
++                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">Research Pipeline</p>
++                    <h3 className="mt-1 text-xl font-bold tracking-normal">{NODE_COPY[activeNode] || "Ready for the next research run."}</h3>
++                  </div>
++                  <div className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--panel)] px-3 py-2 text-sm font-semibold text-[var(--text-2)]">
++                    <Clock3 className="h-4 w-4 text-[var(--signal)]" />
++                    {progress}% complete
++                  </div>
++                </div>
++
++                <div className="mt-5 h-2 overflow-hidden rounded-full bg-[var(--panel)]">
++                  <motion.div className="h-full bg-[var(--signal)]" animate={{ width: `${progress}%` }} transition={{ type: "spring", stiffness: 90, damping: 20 }} />
++                </div>
++
++                <div className="mt-6 grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
++                  {GRAPH_NODES.map((node) => {
++                    const Icon = node.icon;
++                    const status = stageStatus(activeNode, completedNodes, node.id);
++                    return (
++                      <div key={node.id} className={`stage-tile ${status}`}>
++                        <Icon className="h-4 w-4" />
++                        <span>{node.label}</span>
++                      </div>
++                    );
++                  })}
++                </div>
++
++                <div className="mt-6 grid gap-4 md:grid-cols-2">
++                  <div className="terminal-panel">
++                    <div className="mb-3 flex items-center justify-between">
++                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">Reasoning Stream</span>
++                      {isLoading && <span className="h-2 w-2 rounded-full bg-[var(--signal)] shadow-[0_0_18px_var(--signal)]" />}
++                    </div>
++                    <div className="h-72 overflow-y-auto pr-2 font-mono text-xs leading-6 text-[var(--text-2)] custom-scrollbar">
++                      {logs.length === 0 ? (
++                        <div className="flex h-full items-center justify-center text-[var(--text-3)]">Waiting for first signal...</div>
++                      ) : (
++                        logs.map((log, index) => (
++                          <div key={`${log}-${index}`} className="grid grid-cols-[54px_1fr] gap-3 border-b border-[var(--line)]/40 py-2 last:border-0">
++                            <span className="text-[var(--text-3)]">{String(index + 1).padStart(2, "0")}</span>
++                            <span>{log}</span>
++                          </div>
++                        ))
++                      )}
++                      <div ref={logsEndRef} />
++                    </div>
++                  </div>
++
++                  <div className="terminal-panel">
++                    <div className="mb-3 flex items-center justify-between">
++                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">Evidence Map</span>
++                      <span className="text-xs font-semibold text-[var(--signal)]">{sources.length} URLs</span>
++                    </div>
++                    <div className="h-72 overflow-y-auto pr-2 custom-scrollbar">
++                      {sources.length === 0 ? (
++                        <div className="flex h-full items-center justify-center text-sm text-[var(--text-3)]">Sources appear here as they are analyzed.</div>
++                      ) : (
++                        <div className="space-y-2">
++                          {sources.map((source, index) => (
++                            <a key={source} href={source} target="_blank" rel="noreferrer" className="source-row">
++                              <span>{index + 1}</span>
++                              <div className="min-w-0">
++                                <p>{normalizeHost(source)}</p>
++                                <small>{source}</small>
++                              </div>
++                            </a>
++                          ))}
++                        </div>
++                      )}
++                    </div>
++                  </div>
++                </div>
++              </div>
++
++              <aside className="ops-panel">
++                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-3)]">Current Brief</p>
++                <h3 className="mt-2 text-xl font-bold tracking-normal">{query || "No active query"}</h3>
++                <div className="mt-5 grid grid-cols-2 gap-3">
++                  <MiniStat label="Sources" value={String(sources.length)} />
++                  <MiniStat label="Domains" value={String(uniqueDomains.length)} />
++                  <MiniStat label="Tracks" value={String(subQuestions)} />
++                  <MiniStat label="Depth" value={String(depth)} />
++                </div>
++                <div className="mt-5 space-y-2">
++                  {uniqueDomains.length === 0 ? (
++                    <p className="text-sm text-[var(--text-3)]">The evidence set will summarize top domains once search begins.</p>
++                  ) : (
++                    uniqueDomains.map((domain) => (
++                      <div key={domain} className="domain-pill">
++                        <span className="h-1.5 w-1.5 rounded-full bg-[var(--signal)]" />
++                        {domain}
++                      </div>
++                    ))
++                  )}
++                </div>
++              </aside>
++            </motion.section>
++          )}
++        </AnimatePresence>
++
++        <AnimatePresence>
++          {report && (
++            <motion.section ref={reportRef} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} className="report-panel">
++              <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--line)] pb-5">
++                <div>
++                  <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[var(--ok)]/30 bg-[var(--ok)]/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-[var(--ok)]">
++                    <CheckCircle2 className="h-3.5 w-3.5" />
++                    Report ready
++                  </div>
++                  <h2 className="max-w-3xl text-3xl font-black tracking-normal">{query}</h2>
++                </div>
++                <div className="flex flex-wrap gap-2 print:hidden">
++                  <button onClick={downloadPDF} className="action-button">
++                    {exportFormat === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
++                    PDF
++                  </button>
++                  <a href={`/api/v1/research/${sessionId}/export?format=html`} target="_blank" rel="noopener noreferrer" className="action-button">
++                    <FileText className="h-4 w-4" />
++                    HTML
++                  </a>
++                  <a href={`/api/v1/research/${sessionId}/export?format=json`} target="_blank" rel="noopener noreferrer" className="action-button">
++                    <FileJson className="h-4 w-4" />
++                    JSON
++                  </a>
++                </div>
++              </div>
++
++              <article className="prose prose-invert mt-8 max-w-none">
++                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
++                  {report}
++                </ReactMarkdown>
++              </article>
++            </motion.section>
++          )}
++        </AnimatePresence>
++
++        {report && metrics && (
++          <section>
++            <div className="mb-4 flex justify-center print:hidden">
++              <button onClick={() => setShowMetrics((value) => !value)} className="action-button">
++                {showMetrics ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
++                {showMetrics ? "Hide metrics" : "Show metrics"}
++              </button>
++            </div>
++            {showMetrics && <MetricsDashboard metrics={metrics} />}
++          </section>
++        )}
++      </div>
++    </main>
++  );
++}
++
++function RangeControl({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) {
++  return (
++    <label className="range-control">
++      <span>
++        {label}
++        <strong>{value}</strong>
++      </span>
++      <input type="range" min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} />
++    </label>
++  );
++}
++
++function Signal({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
++  return (
++    <div className="signal-card">
++      <div className="text-[var(--signal)]">{icon}</div>
++      <div>
++        <p>{label}</p>
++        <strong>{value}</strong>
++      </div>
++    </div>
++  );
++}
++
++function MiniStat({ label, value }: { label: string; value: string }) {
++  return (
++    <div className="mini-stat">
++      <span>{label}</span>
++      <strong>{value}</strong>
+     </div>
+   );
+ }

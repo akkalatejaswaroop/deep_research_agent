@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REX — Recursive Exploration eXplorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0D0D0D;
+      --surface: #1A1A1A;
+      --card: #222222;
+      --border: rgba(255, 255, 255, 0.06);
+      --border-strong: rgba(255, 255, 255, 0.12);
+      --primary: #FF3366;
+      --primary-dim: rgba(255, 51, 102, 0.12);
+      --primary-glow: rgba(255, 51, 102, 0.25);
+      --secondary: #FFD23F;
+      --secondary-dim: rgba(255, 210, 63, 0.12);
+      --accent: #00C9A7;
+      --accent-dim: rgba(0, 201, 167, 0.12);
+      --highlight: #FF6B35;
+      --highlight-dim: rgba(255, 107, 53, 0.12);
+      --text-1: #F5F5F5;
+      --text-2: #A0A0A0;
+      --text-3: #606060;
+      --radius: 12px;
+      --radius-lg: 20px;
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+      --font-display: 'Archivo', sans-serif;
+      --font-body: 'Instrument Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text-1);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    ::selection { background: var(--primary-dim); color: var(--text-1); }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--text-3); border-radius: 3px; }
+    a { color: inherit; text-decoration: none; }
+    h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 800; line-height: 1.08; letter-spacing: -0.03em; color: var(--text-1); }
+    code, .font-mono { font-family: var(--font-mono); }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 3; }
+
+    /* ── Scroll Progress ── */
+    #scroll-progress {
+      position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      z-index: 999; transition: width 0.1s linear;
+    }
+
+    /* ── Background Shapes ── */
+    #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: 0.7; }
+    .bg-overlay { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      background: radial-gradient(ellipse at 20% 0%, rgba(255,51,102,0.04) 0%, transparent 50%),
+                  radial-gradient(ellipse at 80% 100%, rgba(0,201,167,0.04) 0%, transparent 50%),
+                  radial-gradient(ellipse at 50% 50%, rgba(255,210,63,0.02) 0%, transparent 50%); }
+    .floating-shapes { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+    .floating-shape { position: absolute; border-radius: 50%; opacity: 0.06; animation: floatShape 20s ease-in-out infinite; }
+    .floating-shape:nth-child(1) { width: 400px; height: 400px; background: var(--primary); top: -100px; right: -100px; animation-delay: 0s; }
+    .floating-shape:nth-child(2) { width: 300px; height: 300px; background: var(--accent); bottom: -50px; left: -80px; animation-delay: -7s; }
+    .floating-shape:nth-child(3) { width: 200px; height: 200px; background: var(--secondary); top: 50%; left: 50%; animation-delay: -14s; }
+    @keyframes floatShape {
+      0%, 100% { transform: translate(0, 0) scale(1) rotate(0deg); }
+      33% { transform: translate(30px, -30px) scale(1.05) rotate(120deg); }
+      66% { transform: translate(-20px, 20px) scale(0.95) rotate(240deg); }
+    }
+
+    /* ── Header ── */
+    .header { position: sticky; top: 0; z-index: 100; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      background: rgba(13,13,13,0.7); border-bottom: 1px solid var(--border);
+      transition: background 0.3s; }
+    .header.scrolled { background: rgba(13,13,13,0.85); }
+    .header-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+    .logo { font-family: var(--font-display); font-weight: 900; font-size: 24px; color: var(--text-1); letter-spacing: -0.04em; }
+    .logo span { background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a { font-size: 13px; font-weight: 500; color: var(--text-2); transition: color 0.2s; position: relative; }
+    .nav-links a:hover { color: var(--text-1); }
+    .nav-links a::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 2px; background: var(--primary); transition: width 0.3s var(--ease); }
+    .nav-links a:hover::after { width: 100%; }
+    .nav-cta {
+      display: inline-flex; align-items: center; gap: 8px; padding: 8px 22px; border-radius: 999px;
+      background: linear-gradient(135deg, var(--primary), var(--highlight)); color: #fff !important; font-weight: 700; font-size: 13px;
+      transition: all 0.3s var(--ease); box-shadow: 0 4px 20px var(--primary-glow); }
+    .nav-cta:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 8px 30px var(--primary-glow); }
+
+    /* ── Hero ── */
+    .hero { padding: 140px 0 60px; text-align: center; position: relative; }
+
+    /* Brand Logo Mark */
+    .hero-logo-mark {
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 28px; position: relative;
+    }
+    .hero-logo-mark svg {
+      width: 72px; height: 72px; filter: drop-shadow(0 0 40px var(--primary-glow));
+    }
+    .hero-logo-ring {
+      position: absolute; inset: -8px; border-radius: 50%;
+      border: 1.5px solid var(--primary-dim);
+      animation: logoPulse 3s ease-in-out infinite;
+    }
+    .hero-logo-ring:nth-child(2) { inset: -16px; animation-delay: -1s; border-color: var(--secondary-dim); }
+    .hero-logo-ring:nth-child(3) { inset: -24px; animation-delay: -2s; border-color: var(--accent-dim); }
+    @keyframes logoPulse {
+      0%, 100% { transform: scale(1); opacity: 0.4; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+    .hero-brand-name {
+      font-family: var(--font-display); font-weight: 900; font-size: 14px;
+      letter-spacing: 0.35em; text-transform: uppercase; margin-bottom: 28px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero-brand-name span { font-weight: 400; letter-spacing: 0.15em; }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px; padding: 6px 16px;
+      border-radius: 999px; border: 1px solid var(--border); background: rgba(255,255,255,0.03);
+      font-size: 12px; font-weight: 500; color: var(--text-2); margin-bottom: 32px;
+      backdrop-filter: blur(8px); }
+    .hero-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+    .hero h1 { font-size: clamp(40px, 7vw, 80px); margin-bottom: 20px; line-height: 1.02; }
+    .hero h1 .gradient-text {
+      background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent), var(--primary));
+      background-size: 300% 300%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      animation: gradientShift 6s ease-in-out infinite; }
+    @keyframes gradientShift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+    .hero h1 .block { display: block; }
+    .hero p { font-size: 17px; color: var(--text-2); max-width: 600px; margin: 0 auto 36px; line-height: 1.7; }
+    .hero-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 10px; padding: 16px 34px;
+      border-radius: var(--radius); background: linear-gradient(135deg, var(--primary), var(--highlight));
+      color: #fff; font-weight: 700; font-size: 14px; border: none; cursor: pointer;
+      transition: all 0.3s var(--ease); box-shadow: 0 8px 30px var(--primary-glow); position: relative; overflow: hidden; }
+    .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 12px 40px var(--primary-glow); }
+    .btn-primary .btn-shimmer { position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent); transform: translateX(-100%); }
+    .btn-primary:hover .btn-shimmer { animation: shimmer 1.5s ease-in-out; }
+    @keyframes shimmer { 100% { transform: translateX(100%); } }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: 8px; padding: 16px 34px;
+      border-radius: var(--radius); background: transparent; color: var(--text-1);
+      font-weight: 600; font-size: 14px; border: 1px solid var(--border-strong); cursor: pointer;
+      transition: all 0.3s var(--ease); }
+    .btn-secondary:hover { border-color: var(--primary); background: var(--primary-dim); transform: translateY(-2px); }
+
+    .hero-scroll-indicator { margin-top: 60px; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-3); font-size: 11px; font-family: var(--font-mono); letter-spacing: 0.1em; }
+    .scroll-arrow { width: 20px; height: 30px; border: 2px solid var(--text-3); border-radius: 10px; position: relative; }
+    .scroll-arrow::after { content: ''; position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 3px; height: 8px; background: var(--text-2); border-radius: 2px; animation: scrollBounce 2s ease-in-out infinite; }
+    @keyframes scrollBounce { 0%,100% { transform: translateX(-50%) translateY(0); opacity: 1; } 50% { transform: translateX(-50%) translateY(8px); opacity: 0.3; } }
+
+    .hero-metrics { display: flex; flex-wrap: wrap; justify-content: center; gap: 48px; margin-top: 48px; padding-top: 40px; border-top: 1px solid var(--border); }
+    .metric { text-align: center; }
+    .metric-value { font-family: var(--font-display); font-size: 36px; font-weight: 900; background: linear-gradient(135deg, var(--text-1), var(--text-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .metric-label { font-size: 12px; color: var(--text-3); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+
+    /* ── Section common ── */
+    section { padding: 100px 0; }
+    .section-header { text-align: center; margin-bottom: 56px; }
+    .section-tag {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px 14px; border-radius: 999px;
+      font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+      background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,201,167,0.15); margin-bottom: 16px; }
+    .section-tag.pink { background: var(--primary-dim); color: var(--primary); border-color: rgba(255,51,102,0.15); }
+    .section-tag.gold { background: var(--secondary-dim); color: var(--secondary); border-color: rgba(255,210,63,0.15); }
+    .section-tag.orange { background: var(--highlight-dim); color: var(--highlight); border-color: rgba(255,107,53,0.15); }
+    .section-header h2 { font-size: clamp(32px, 4.5vw, 48px); margin-bottom: 14px; }
+    .section-header p { font-size: 15px; color: var(--text-2); max-width: 520px; margin: 0 auto; line-height: 1.7; }
+
+    .section-divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border-strong), transparent); margin: 0; }
+
+    /* ── Reveal ── */
+    .reveal { opacity: 0; transform: translateY(40px); transition: all 0.8s var(--ease); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal-left { opacity: 0; transform: translateX(-40px); transition: all 0.8s var(--ease); }
+    .reveal-left.visible { opacity: 1; transform: translateX(0); }
+    .reveal-right { opacity: 0; transform: translateX(40px); transition: all 0.8s var(--ease); }
+    .reveal-right.visible { opacity: 1; transform: translateX(0); }
+    .reveal-scale { opacity: 0; transform: scale(0.92); transition: all 0.8s var(--ease); }
+    .reveal-scale.visible { opacity: 1; transform: scale(1); }
+    .delay-1 { transition-delay: 0.1s; }
+    .delay-2 { transition-delay: 0.2s; }
+    .delay-3 { transition-delay: 0.3s; }
+    .delay-4 { transition-delay: 0.4s; }
+    .delay-5 { transition-delay: 0.5s; }
+    .delay-6 { transition-delay: 0.6s; }
+    .delay-7 { transition-delay: 0.7s; }
+
+    /* ── Features ── */
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .feature-card {
+      padding: 32px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border);
+      transition: all 0.4s var(--ease); position: relative; overflow: hidden; }
+    .feature-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent)); opacity: 0; transition: opacity 0.4s var(--ease); }
+    .feature-card:hover { transform: translateY(-6px); border-color: rgba(255,255,255,0.1); box-shadow: 0 24px 60px rgba(0,0,0,0.4); }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-icon { width: 44px; height: 44px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; margin-bottom: 18px; position: relative; }
+    .feature-card h3 { font-size: 17px; margin-bottom: 8px; }
+    .feature-card p { font-size: 13px; color: var(--text-2); line-height: 1.65; }
+
+    /* ── Pipeline Visualizer ── */
+    .workflow-section {
+      border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--surface), rgba(26,26,26,0.5));
+      border: 1px solid var(--border); padding: 48px 32px; position: relative;
+      overflow: hidden; }
+    .workflow-section::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 40%, var(--primary-dim) 0%, transparent 50%), radial-gradient(ellipse at 70% 60%, var(--accent-dim) 0%, transparent 50%); pointer-events: none; }
+
+    .workflow-tabs { display: flex; gap: 2px; margin-bottom: 32px; padding: 3px; border-radius: var(--radius); background: rgba(0,0,0,0.3); border: 1px solid var(--border); width: fit-content; position: relative; z-index: 2; }
+    .workflow-tab { padding: 9px 20px; border-radius: 9px; font-size: 12px; font-weight: 600; font-family: var(--font-mono); background: transparent; color: var(--text-2); border: none; cursor: pointer; transition: all 0.25s var(--ease); }
+    .workflow-tab.active { background: linear-gradient(135deg, var(--primary), var(--highlight)); color: #fff; box-shadow: 0 4px 15px var(--primary-glow); }
+    .workflow-tab:not(.active):hover { color: var(--text-1); background: rgba(255,255,255,0.05); }
+
+    .demo-input-area { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; position: relative; z-index: 2; }
+    .demo-input-wrapper { position: relative; flex: 1; min-width: 200px; }
+    .demo-input-wrapper .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-3); }
+    .demo-input { width: 100%; padding: 13px 16px 13px 42px; border-radius: var(--radius); border: 1px solid var(--border); background: rgba(13,13,13,0.6); color: var(--text-1); font-size: 13px; font-family: var(--font-body); outline: none; transition: all 0.25s var(--ease); }
+    .demo-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-dim); }
+
+    .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; align-items: center; position: relative; z-index: 2; }
+    .presets-label { font-size: 11px; font-family: var(--font-mono); color: var(--text-3); display: flex; align-items: center; gap: 4px; }
+    .preset-pill { padding: 5px 14px; border-radius: 999px; border: 1px solid var(--border); background: rgba(13,13,13,0.4); font-size: 11px; color: var(--text-2); cursor: pointer; transition: all 0.2s var(--ease); }
+    .preset-pill:hover { border-color: var(--primary); background: var(--primary-dim); color: var(--primary); }
+
+    .pipeline-stages { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; margin-bottom: 16px; position: relative; z-index: 2; }
+    .pipeline-node { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 4px; border-radius: var(--radius); border: 1px solid var(--border); background: rgba(13,13,13,0.4); transition: all 0.4s var(--ease); position: relative; overflow: hidden; }
+    .pipeline-node .node-num { font-family: var(--font-mono); font-size: 9px; font-weight: 600; color: var(--text-3); }
+    .pipeline-node .node-icon { width: 20px; height: 20px; color: var(--text-3); transition: color 0.3s; }
+    .pipeline-node .node-label { font-size: 9px; font-weight: 700; font-family: var(--font-display); color: var(--text-3); text-align: center; line-height: 1.2; transition: color 0.3s; }
+    .pipeline-node.idle { opacity: 0.5; }
+    .pipeline-node.active { border-color: var(--primary); background: var(--primary-dim); box-shadow: 0 0 30px var(--primary-glow), inset 0 0 20px var(--primary-dim); transform: scale(1.06); }
+    .pipeline-node.active .node-num, .pipeline-node.active .node-label { color: var(--primary); }
+    .pipeline-node.active .node-icon { color: var(--primary); }
+    .pipeline-node.done { border-color: var(--accent); background: var(--accent-dim); }
+    .pipeline-node.done .node-num, .pipeline-node.done .node-label { color: var(--accent); }
+    .pipeline-node.done .node-icon { color: var(--accent); }
+    .pipeline-node .node-glow { position: absolute; inset: -2px; border-radius: inherit; opacity: 0; transition: opacity 0.4s; }
+    .pipeline-node.active .node-glow { opacity: 1; }
+
+    .progress-bar-track { height: 6px; border-radius: 3px; background: rgba(13,13,13,0.6); border: 1px solid var(--border); padding: 1px; margin: 12px 0; overflow: hidden; position: relative; z-index: 2; }
+    .progress-bar-fill { height: 100%; border-radius: 2px; width: 0%; transition: width 0.4s var(--ease);
+      background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent)); background-size: 200% 100%;
+      animation: progressShimmer 2s linear infinite; }
+    @keyframes progressShimmer { 0% { background-position: 0% 0%; } 100% { background-position: 200% 0%; } }
+    .progress-info { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; margin-bottom: 4px; position: relative; z-index: 2; }
+    .progress-info .phase-name { color: var(--text-2); font-weight: 600; }
+    .progress-info .phase-pct { color: var(--secondary); font-weight: 700; }
+
+    .log-window { border-radius: var(--radius); border: 1px solid var(--border); background: rgba(13,13,13,0.6); padding: 16px; margin-top: 16px; font-family: var(--font-mono); font-size: 11px; position: relative; z-index: 2; backdrop-filter: blur(8px); }
+    .log-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+    .log-header-label { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-2); }
+    .log-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+    .log-body { max-height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; color: var(--text-2); }
+    .log-body:empty::after { content: 'Click "Run Pipeline" to observe real-time agent execution...'; color: var(--text-3); padding: 20px 0; text-align: center; width: 100%; }
+    .log-line { line-height: 1.6; padding: 2px 0; }
+    .log-line:nth-child(even) { background: rgba(255,255,255,0.02); }
+
+    .tab-content { display: none; animation: tabFade 0.3s var(--ease); }
+    .tab-content.active { display: block; }
+    @keyframes tabFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .report-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 24px; text-align: center; border-radius: var(--radius); border: 1px dashed var(--border-strong); background: rgba(13,13,13,0.3); gap: 16px; }
+    .report-placeholder svg { width: 48px; height: 48px; color: var(--text-3); opacity: 0.3; }
+    .report-placeholder p { font-size: 13px; color: var(--text-2); max-width: 300px; }
+    .algorithms-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .algo-card { padding: 20px; border-radius: var(--radius); background: rgba(13,13,13,0.4); border: 1px solid var(--border); transition: all 0.3s var(--ease); }
+    .algo-card:hover { border-color: var(--primary); background: var(--primary-dim); }
+    .algo-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .algo-card-header svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .algo-card-header h4 { font-size: 13px; }
+    .algo-card .algo-sub { font-family: var(--font-mono); font-size: 10px; color: var(--primary); }
+    .algo-card p { font-size: 12px; color: var(--text-2); line-height: 1.6; }
+
+    /* ── Specialities ── */
+    .specialities-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .speciality-card { padding: 32px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); transition: all 0.4s var(--ease); position: relative; overflow: hidden; }
+    .speciality-card::after { content: ''; position: absolute; bottom: 0; right: 0; width: 120px; height: 120px; border-radius: 50%; opacity: 0.05; transition: all 0.5s var(--ease); }
+    .speciality-card:hover::after { transform: scale(3); opacity: 0.08; }
+    .speciality-card:nth-child(1)::after { background: var(--primary); }
+    .speciality-card:nth-child(2)::after { background: var(--secondary); }
+    .speciality-card:nth-child(3)::after { background: var(--accent); }
+    .speciality-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+    .speciality-card .icon-box { width: 48px; height: 48px; border-radius: var(--radius); display: flex; align-items: center; justify-content: center; margin-bottom: 18px; }
+    .speciality-card:nth-child(1) .icon-box { background: var(--primary-dim); }
+    .speciality-card:nth-child(2) .icon-box { background: var(--secondary-dim); }
+    .speciality-card:nth-child(3) .icon-box { background: var(--accent-dim); }
+    .speciality-card h3 { font-size: 16px; margin-bottom: 8px; }
+    .speciality-card p { font-size: 13px; color: var(--text-2); line-height: 1.65; }
+
+    /* ── Comparison Matrix ── */
+    .comparison-wrapper { border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--surface); padding: 28px; overflow-x: auto; }
+    .comparison-wrapper h3 { font-size: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+    .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; text-align: left; }
+    .comp-table th { padding: 14px 18px; border-bottom: 2px solid var(--border); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; font-family: var(--font-mono); }
+    .comp-table th:last-child { background: linear-gradient(135deg, var(--primary-dim), var(--highlight-dim)); color: var(--primary); border-radius: 0 8px 0 0; }
+    .comp-table td { padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-2); }
+    .comp-table td:first-child { font-weight: 600; color: var(--text-1); }
+    .comp-table td:last-child { color: var(--accent); font-weight: 700; }
+    .comp-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .comp-table .no { color: #FF4757; }
+    .comp-table .partial { color: var(--secondary); }
+
+    /* ── Algorithm Details ── */
+    .algo-detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    .algo-detail-card { padding: 28px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); transition: all 0.4s var(--ease); }
+    .algo-detail-card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.1); box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+    .algo-detail-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .algo-detail-top svg { width: 28px; height: 28px; }
+    .algo-stage-badge { font-family: var(--font-mono); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 12px; border-radius: 6px; }
+    .algo-detail-card h3 { font-size: 16px; margin-bottom: 8px; }
+    .algo-detail-card p { font-size: 13px; color: var(--text-2); line-height: 1.65; }
+
+    .algo-detail-card:nth-child(1) .algo-stage-badge { background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(255,51,102,0.15); }
+    .algo-detail-card:nth-child(2) .algo-stage-badge { background: var(--secondary-dim); color: var(--secondary); border: 1px solid rgba(255,210,63,0.15); }
+    .algo-detail-card:nth-child(3) .algo-stage-badge { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,201,167,0.15); }
+    .algo-detail-card:nth-child(4) .algo-stage-badge { background: var(--highlight-dim); color: var(--highlight); border: 1px solid rgba(255,107,53,0.15); }
+    .algo-detail-card:nth-child(5) .algo-stage-badge { background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(255,51,102,0.15); }
+    .algo-detail-card:nth-child(6) .algo-stage-badge { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(0,201,167,0.15); }
+
+    /* ── Pipeline Breakdown ── */
+    .pipeline-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .pipe-card { padding: 22px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--border); transition: all 0.3s var(--ease); }
+    .pipe-card:hover { border-color: var(--primary); background: var(--primary-dim); transform: translateY(-2px); }
+    .pipe-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .pipe-card-top svg { width: 22px; height: 22px; }
+    .pipe-card:nth-child(3n+1) .pipe-card-top svg { color: var(--primary); }
+    .pipe-card:nth-child(3n+2) .pipe-card-top svg { color: var(--secondary); }
+    .pipe-card:nth-child(3n) .pipe-card-top svg { color: var(--accent); }
+    .pipe-stage-num { font-family: var(--font-mono); font-size: 10px; font-weight: 600; color: var(--text-3); }
+    .pipe-card h3 { font-size: 15px; margin-bottom: 6px; }
+    .pipe-card p { font-size: 12px; color: var(--text-2); line-height: 1.6; }
+
+    /* ── Developer ── */
+    .developer-section { border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--surface), rgba(26,26,26,0.5)); border: 1px solid var(--border); padding: 56px; text-align: center; position: relative; overflow: hidden; }
+    .developer-section::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 20%, var(--primary-dim) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, var(--accent-dim) 0%, transparent 50%); pointer-events: none; }
+    .dev-avatar { width: 88px; height: 88px; border-radius: 50%; margin: 0 auto 20px; position: relative;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 900; font-family: var(--font-display); color: #fff; }
+    .dev-avatar-ring { position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--primary-dim); animation: avatarPulse 3s ease-in-out infinite; }
+    @keyframes avatarPulse { 0%,100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.1); opacity: 0; } }
+    .dev-name { font-family: var(--font-display); font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+    .dev-role { font-size: 14px; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 600; margin-bottom: 16px; }
+    .dev-bio { font-size: 14px; color: var(--text-2); max-width: 540px; margin: 0 auto 24px; line-height: 1.75; }
+    .dev-links { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; position: relative; z-index: 2; }
+    .dev-link { display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px; border-radius: 999px; border: 1px solid var(--border); font-size: 13px; color: var(--text-2); transition: all 0.3s var(--ease); }
+    .dev-link:hover { border-color: var(--primary); background: var(--primary-dim); color: var(--text-1); transform: translateY(-2px); }
+    .dev-link svg { width: 16px; height: 16px; }
+
+    /* ── CTA ── */
+    .cta-section { text-align: center; padding: 72px; border-radius: var(--radius-lg); border: 1px solid var(--border); background: linear-gradient(135deg, var(--surface), rgba(26,26,26,0.3)); position: relative; overflow: hidden; }
+    .cta-section::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, var(--primary-dim) 0%, transparent 50%); pointer-events: none; }
+    .cta-section h2 { font-size: clamp(30px, 4vw, 42px); margin-bottom: 14px; position: relative; }
+    .cta-section p { font-size: 15px; color: var(--text-2); max-width: 480px; margin: 0 auto 32px; position: relative; }
+
+    /* ── Footer ── */
+    .footer { text-align: center; padding: 40px 0 48px; border-top: 1px solid var(--border); margin-top: 40px; }
+    .footer p { font-family: var(--font-mono); font-size: 12px; color: var(--text-3); }
+    .footer a { color: var(--primary); text-decoration: underline; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .specialities-grid { grid-template-columns: 1fr; }
+      .algo-detail-grid { grid-template-columns: 1fr; }
+      .pipeline-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .pipeline-stages { grid-template-columns: repeat(3, 1fr); }
+      .features-grid { grid-template-columns: 1fr; }
+      .algorithms-grid { grid-template-columns: 1fr; }
+      .pipeline-grid { grid-template-columns: 1fr; }
+      .hero-metrics { gap: 28px; }
+      .nav-links a:not(.nav-cta) { display: none; }
+      .developer-section { padding: 32px 20px; }
+      .cta-section { padding: 40px 20px; }
+      section { padding: 60px 0; }
+      .hero { padding: 100px 0 40px; }
+      .workflow-section { padding: 28px 16px; }
+    }
+    @media (max-width: 480px) {
+      .pipeline-stages { grid-template-columns: repeat(3, 1fr); gap: 4px; }
+      .pipeline-node { padding: 6px 2px; }
+      .pipeline-node .node-label { font-size: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="scroll-progress"></div>
+  <canvas id="bg-canvas"></canvas>
+  <div class="bg-overlay"></div>
+  <div class="floating-shapes">
+    <div class="floating-shape"></div>
+    <div class="floating-shape"></div>
+    <div class="floating-shape"></div>
+  </div>
+
+  <header class="header" id="header">
+    <div class="header-inner">
+      <div class="logo">REX<span>.</span></div>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#workflow">Pipeline</a>
+        <a href="#algorithms">Algorithms</a>
+        <a href="#developer">Developer</a>
+        <a href="/" class="nav-cta">Launch App <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-logo-mark" style="opacity:0;animation:fadeIn 0.6s var(--ease) 0s forwards;">
+        <svg viewBox="0 0 64 64" fill="none">
+          <defs>
+            <linearGradient id="lg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#FF3366"/>
+              <stop offset="50%" stop-color="#FFD23F"/>
+              <stop offset="100%" stop-color="#00C9A7"/>
+            </linearGradient>
+          </defs>
+          <rect x="4" y="4" width="56" height="56" rx="14" stroke="url(#lg)" stroke-width="2.5" fill="rgba(255,255,255,0.03)"/>
+          <text x="32" y="42" font-family="'Archivo',sans-serif" font-size="28" font-weight="900" fill="url(#lg)" text-anchor="middle" dominant-baseline="middle">R</text>
+          <path d="M4 18 Q32 4 60 18" stroke="url(#lg)" stroke-width="1.5" fill="none" opacity="0.4"/>
+          <path d="M4 46 Q32 60 60 46" stroke="url(#lg)" stroke-width="1.5" fill="none" opacity="0.4"/>
+          <circle cx="18" cy="14" r="2" fill="#FF3366" opacity="0.6">
+            <animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="46" cy="50" r="2" fill="#00C9A7" opacity="0.6">
+            <animate attributeName="opacity" values="0.6;1;0.6" dur="2.5s" repeatCount="indefinite"/>
+          </circle>
+        </svg>
+        <div class="hero-logo-ring"></div>
+        <div class="hero-logo-ring"></div>
+        <div class="hero-logo-ring"></div>
+      </div>
+      <div class="hero-brand-name" style="opacity:0;animation:fadeIn 0.6s var(--ease) 0.1s forwards;">
+        RECURSIVE EXPLORATION <span>|</span> REX
+      </div>
+      <div class="hero-badge" style="opacity:0;animation:fadeIn 0.6s var(--ease) 0.2s forwards;">
+        <span class="hero-badge-dot"></span>
+        <span>v2.4 — Self-Improving Multi-Agent Pipeline</span>
+      </div>
+      <h1 style="opacity:0;animation:fadeIn 0.8s var(--ease) 0.4s forwards;">
+        <span class="block">Autonomous Deep</span>
+        <span class="gradient-text block">Research Intelligence</span>
+      </h1>
+      <p style="opacity:0;animation:fadeIn 0.8s var(--ease) 0.6s forwards;">REX is a self-improving multi-agent architecture powered by 6 novel algorithms. It recursively explores web indices, audits coverage gaps, and synthesizes 100% cited research intelligence reports.</p>
+      <div class="hero-actions" style="opacity:0;animation:fadeIn 0.8s var(--ease) 0.8s forwards;">
+        <button class="btn-primary" onclick="document.getElementById('workflow').scrollIntoView({behavior:'smooth'})">
+          <span class="btn-shimmer"></span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          See It In Action
+        </button>
+        <a href="/" class="btn-secondary">
+          Launch Workspace
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+      <div class="hero-scroll-indicator">
+        <div class="scroll-arrow"></div>
+        <span>Scroll to explore</span>
+      </div>
+      <div class="hero-metrics" style="opacity:0;animation:fadeIn 0.8s var(--ease) 1s forwards;">
+        <div class="metric"><div class="metric-value" data-count="9">0</div><div class="metric-label">Pipeline Stages</div></div>
+        <div class="metric"><div class="metric-value" data-count="6">0</div><div class="metric-label">Novel Algorithms</div></div>
+        <div class="metric"><div class="metric-value" data-count="100">0</div><div class="metric-label">% Verifiable Cites</div></div>
+        <div class="metric"><div class="metric-value" data-count="5">0</div><div class="metric-label">Quality Dimensions</div></div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features">
+      <div class="section-header reveal">
+        <div class="section-tag">Core Capabilities</div>
+        <h2>Engineered for Depth, Built for Trust</h2>
+        <p>Six proprietary algorithmic innovations working in concert to produce verifiable intelligence at scale.</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card reveal delay-1">
+          <div class="feature-icon" style="background:var(--primary-dim);color:var(--primary)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>
+          <h3>Multi-Agent Orchestration</h3>
+          <p>LangGraph-based graph with specialized agents — Planner, Researcher, Critic, Synthesizer, Explorer, Evaluator — working in parallel concert.</p>
+        </div>
+        <div class="feature-card reveal delay-2">
+          <div class="feature-icon" style="background:var(--secondary-dim);color:var(--secondary)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M12 2v20"/><path d="m5 5 14 14"/></svg></div>
+          <h3>Recursive Depth-First Search</h3>
+          <p>Configurable depth and branching with backtracking on low-confidence paths. Dynamic gap detection triggers secondary searches automatically.</p>
+        </div>
+        <div class="feature-card reveal delay-3">
+          <div class="feature-icon" style="background:var(--accent-dim);color:var(--accent)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></div>
+          <h3>100% Verifiable Citations</h3>
+          <p>Every claim, metric, and percentage anchored to a direct [N] reference link pointing to verified web or academic sources.</p>
+        </div>
+        <div class="feature-card reveal delay-4">
+          <div class="feature-icon" style="background:var(--highlight-dim);color:var(--highlight)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <h3>Self-Improving Memory</h3>
+          <p>Post-run quality scores and lessons stored in vector memory. Future queries learn from past failures to optimize search structure.</p>
+        </div>
+        <div class="feature-card reveal delay-5">
+          <div class="feature-icon" style="background:var(--primary-dim);color:var(--primary)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg></div>
+          <h3>Anti-Hallucination QA Pass</h3>
+          <p>Programmatic verification cross-checks all numeric claims, dates, and percentage figures against raw source text before rendering.</p>
+        </div>
+        <div class="feature-card reveal delay-6">
+          <div class="feature-icon" style="background:var(--accent-dim);color:var(--accent)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div>
+          <h3>LLM-as-Judge 5D Scoring</h3>
+          <p>Quantitative evaluation across Relevance, Depth, Novelty, Coherence, and Citation Accuracy with operational telemetry recording.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- INTERACTIVE WORKFLOW -->
+    <section id="workflow">
+      <div class="section-header reveal">
+        <div class="section-tag pink">Interactive Demonstration</div>
+        <h2>Real-Time Agent Pipeline Visualizer</h2>
+        <p>Watch REX execute its 9-stage research pipeline live, with full telemetry and animated progress tracking.</p>
+      </div>
+      <div class="workflow-section reveal-scale">
+        <div class="workflow-tabs">
+          <button class="workflow-tab active" data-tab="workflow">Pipeline Flow</button>
+          <button class="workflow-tab" data-tab="report">Sample Report</button>
+          <button class="workflow-tab" data-tab="algorithms">Algorithms</button>
+        </div>
+        <div class="demo-input-area">
+          <div class="demo-input-wrapper">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input class="demo-input" id="demo-query" type="text" value="How will solid-state batteries change EV manufacturing by 2030?" placeholder="Enter any research question...">
+          </div>
+          <button class="btn-primary" id="demo-btn" onclick="runDemo()">
+            <span class="btn-shimmer"></span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span>Run Pipeline</span>
+          </button>
+        </div>
+        <div class="presets">
+          <span class="presets-label">&#9733; Presets:</span>
+          <button class="preset-pill" onclick="setPreset(0)">Solid-state batteries &amp; EV</button>
+          <button class="preset-pill" onclick="setPreset(1)">AI security &amp; prompt injection</button>
+          <button class="preset-pill" onclick="setPreset(2)">CRISPR-Cas13 therapies</button>
+          <button class="preset-pill" onclick="setPreset(3)">Post-quantum cryptography</button>
+        </div>
+        <div class="tab-content active" id="tab-workflow">
+          <div class="pipeline-visual">
+            <div class="progress-info"><span class="phase-name" id="phase-name">Planning</span><span class="phase-pct" id="phase-pct">0% Complete</span></div>
+            <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill"></div></div>
+            <div class="pipeline-stages" id="pipeline-stages"></div>
+          </div>
+          <div class="log-window">
+            <div class="log-header">
+              <span class="log-header-label"><span class="log-dot" id="live-dot"></span>Live Agent Reasoning Telemetry</span>
+              <span style="font-size:10px;color:var(--text-3)">Real-Time Logs</span>
+            </div>
+            <div class="log-body" id="log-body"></div>
+          </div>
+        </div>
+        <div class="tab-content" id="tab-report">
+          <div class="report-placeholder" id="report-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <p>No report generated yet. Run the pipeline above to see a complete intelligence report.</p>
+          </div>
+          <div id="report-content" style="display:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <h3 style="font-size:15px;display:flex;align-items:center;gap:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z"/><polyline points="14 2 14 8 20 8"/></svg>Generated Intelligence Report</h3>
+              <span style="border-radius:999px;background:var(--accent-dim);padding:4px 14px;font-size:10px;font-weight:700;text-transform:uppercase;color:var(--accent);border:1px solid rgba(0,201,167,0.2)">100% Grounded &amp; Cited</span>
+            </div>
+            <div id="report-rendered" style="border-radius:var(--radius);border:1px solid var(--border);background:rgba(13,13,13,0.4);padding:24px;max-height:480px;overflow-y:auto;font-size:13px;line-height:1.8;color:var(--text-2)"></div>
+          </div>
+        </div>
+        <div class="tab-content" id="tab-algorithms">
+          <div class="algorithms-grid">
+            <div class="algo-card">
+              <div class="algo-card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg><div><h4>1. Dynamic Knowledge Gap Detection</h4><div class="algo-sub">Iterative Coverage Auditor</div></div></div>
+              <p>Audits multi-track synthesis for evidence deficits, triggering targeted secondary back-search iterations before final assembly.</p>
+            </div>
+            <div class="algo-card">
+              <div class="algo-card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--secondary)"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><div><h4>2. MMR Chunking &amp; Filtering</h4><div class="algo-sub">Lexical &amp; Semantic Precision</div></div></div>
+              <p>Combines semantic vector embeddings with domain authority tier scoring to filter out SEO fluff and prioritize high-density evidence.</p>
+            </div>
+            <div class="algo-card">
+              <div class="algo-card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><div><h4>3. Experiential Vector Memory Recall</h4><div class="algo-sub">Self-Improving Trajectory</div></div></div>
+              <p>Stores post-run quality scores and reflection lessons. Future planners query past memory to optimize search query structures.</p>
+            </div>
+            <div class="algo-card">
+              <div class="algo-card-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--highlight)"><path d="M2 20h20"/><path d="M4 20V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12"/><path d="M7 13h.01M11 13h.01M15 13h.01"/></svg><div><h4>4. QA &amp; Numeric Verification Pass</h4><div class="algo-sub">Anti-Hallucination Guard</div></div></div>
+              <p>Programmatically audits final draft to verify every numeric claim against original sources before rendering the final output.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- SPECIALITIES + COMPARISON -->
+    <section>
+      <div class="section-header reveal">
+        <div class="section-tag gold">Why REX Sets New Standards</div>
+        <h2>Key Inventions &amp; Architectural Specialities</h2>
+        <p>Generic search tools return isolated links. Single-prompt AI agents hallucinate statistics. REX combines 6 novel multi-agent algorithms to build verifiable intelligence.</p>
+      </div>
+      <div class="specialities-grid">
+        <div class="speciality-card reveal delay-1">
+          <div class="icon-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div>
+          <h3>100% Verifiable Inline Citations</h3>
+          <p>Every single claim, metric, and percentage is anchored to a direct [N] reference link pointing to verified web or academic sources.</p>
+        </div>
+        <div class="speciality-card reveal delay-2">
+          <div class="icon-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--secondary)"><path d="M2 12h20"/><path d="M12 2v20"/><path d="m5 5 14 14"/></svg></div>
+          <h3>Recursive Multi-Depth Searching</h3>
+          <p>Rather than stopping at a single search pass, REX dynamically detects missing sub-topics and recursively launches secondary search tracks.</p>
+        </div>
+        <div class="speciality-card reveal delay-3">
+          <div class="icon-box"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <h3>Empirical LLM-as-Judge Telemetry</h3>
+          <p>Scores every research run on Relevance, Depth, Novelty, Coherence, and Citation Accuracy, recording operational metrics for evaluation.</p>
+        </div>
+      </div>
+      <div class="comparison-wrapper reveal-scale" style="margin-top:32px;">
+        <h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>Comparative Architecture Matrix</h3>
+        <table class="comp-table">
+          <thead><tr><th>Feature / Capability</th><th>Standard Search</th><th>Basic RAG Agent</th><th>REX Multi-Agent OS</th></tr></thead>
+          <tbody>
+            <tr><td>Recursive Gap Fill Loops</td><td class="no">&#10007; None</td><td class="partial">&#9888; Single-Pass</td><td>&#10003; Automated Loop</td></tr>
+            <tr><td>Factual Citation Integrity</td><td class="no">&#10007; Manual Links</td><td class="partial">&#9888; Hallucination Risk</td><td>&#10003; 100% Inline [N]</td></tr>
+            <tr><td>Experiential Memory Recall</td><td class="no">&#10007; None</td><td class="no">&#10007; Stateless</td><td>&#10003; Vector Memory</td></tr>
+            <tr><td>Automated QA Numeric Pass</td><td class="no">&#10007; None</td><td class="no">&#10007; None</td><td>&#10003; Automated Check</td></tr>
+            <tr><td>5D Quality Telemetry</td><td class="no">&#10007; None</td><td class="no">&#10007; None</td><td>&#10003; Real-time Telemetry</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- ALGORITHM DETAILS -->
+    <section id="algorithms">
+      <div class="section-header reveal">
+        <div class="section-tag orange">Core Algorithmic Foundations</div>
+        <h2>Algorithms &amp; Their Agent Use Cases</h2>
+        <p>Every mathematical heuristic, vector optimization, and verification algorithm powering the multi-agent architecture.</p>
+      </div>
+      <div class="algo-detail-grid">
+        <div class="algo-detail-card reveal delay-1"><div class="algo-detail-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span class="algo-stage-badge">Stage 4 — Analyzing</span></div><h3>Maximal Marginal Relevance Diversity Algorithm</h3><p>Computes vector similarity metrics between search sub-questions and candidate text blocks while penalizing cross-source duplication. Ensures synthesized evidence contains maximum factual novelty with zero redundant paragraphs.</p></div>
+        <div class="algo-detail-card reveal delay-2"><div class="algo-detail-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--secondary)"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span class="algo-stage-badge">Stage 3 &amp; 4 — Search &amp; Rank</span></div><h3>Domain Tier Authority &amp; Lexical Scoring</h3><p>Multiplies term frequencies by domain authority coefficients (.edu, .gov, peer-reviewed journals vs vendor blogs) to filter promotional content and rank top 1% empirical sources.</p></div>
+        <div class="algo-detail-card reveal delay-3"><div class="algo-detail-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg><span class="algo-stage-badge">Stage 6 — Auditing</span></div><h3>Dynamic Knowledge Gap Detection &amp; Recourse</h3><p>Uses LLM-based zero-shot coverage grading to classify responses as COMPLETE, PARTIAL, or MISSING. For gaps, algorithmically formulates new search queries and triggers recursive loops.</p></div>
+        <div class="algo-detail-card reveal delay-4"><div class="algo-detail-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--highlight)"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg><span class="algo-stage-badge">Stage 2 — Recall</span></div><h3>768-Dimensional Cosine Vector Memory Recall</h3><p>Converts operational lessons into 768-d nomic embeddings and executes Supabase RPC cosine similarity queries to inject past research failure modes directly into planning prompts.</p></div>
+        <div class="algo-detail-card reveal delay-5"><div class="algo-detail-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary)"><path d="M2 20h20"/><path d="M4 20V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12"/><path d="M7 13h.01M11 13h.01M15 13h.01"/></svg><span class="algo-stage-badge">Stage 8 — Reporting</span></div><h3>Programmatic Anti-Hallucination QA Rule-Pass</h3><p>Runs multi-pattern regex verification across report drafts to cross-check all numerical metrics, dates, and percentages against raw scraped web text, flagging unbacked statistics.</p></div>
+        <div class="algo-detail-card reveal delay-6"><div class="algo-detail-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span class="algo-stage-badge">Stage 9 — Scoring</span></div><h3>LLM-as-Judge 5D Quality Telemetry</h3><p>Evaluates outputs across 5 quantitative dimensions — Relevance, Depth, Novelty, Coherence, Citation Accuracy — recording execution telemetry and saving operational lessons for future runs.</p></div>
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- PIPELINE BREAKDOWN -->
+    <section>
+      <div class="section-header reveal">
+        <div class="section-tag">Complete Process Breakdown</div>
+        <h2>The 9-Stage Automated Pipeline</h2>
+        <p>How REX executes research from raw input prompt to published intelligence report.</p>
+      </div>
+      <div class="pipeline-grid" id="pipeline-breakdown"></div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <!-- DEVELOPER -->
+    <section id="developer">
+      <div class="developer-section reveal-scale">
+        <div class="dev-avatar">
+          TA
+          <div class="dev-avatar-ring"></div>
+        </div>
+        <div class="dev-name">Tejas Waroop Akkala</div>
+        <div class="dev-role">Founder &amp; Architect — REX</div>
+        <p class="dev-bio">
+          Built REX from first principles to solve a fundamental problem: existing search and AI tools cannot produce verifiable, citation-grounded deep research at scale. REX combines 6 novel algorithms across a LangGraph multi-agent architecture — every line of the orchestration engine, vector memory system, anti-hallucination QA pass, and 5D telemetry framework was designed to push the boundary of what autonomous research systems can achieve.
+        </p>
+        <div class="dev-links">
+          <a href="#" class="dev-link"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>GitHub</a>
+          <a href="#" class="dev-link"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>LinkedIn</a>
+          <a href="#" class="dev-link"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/></svg>Twitter / X</a>
+          <a href="#" class="dev-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>Email</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section>
+      <div class="cta-section reveal-scale">
+        <h2>Ready to Experience Autonomous Intelligence?</h2>
+        <p>Launch REX to generate comprehensive, fully-cited research papers on any complex technology, market, or scientific topic in minutes.</p>
+        <a href="/" class="btn-primary" style="font-size:15px;padding:18px 44px;">
+          <span class="btn-shimmer"></span>
+          Launch Full Workspace Now
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        </a>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>&copy; 2026 REX. &nbsp;·&nbsp; Built by <a href="#developer">Tejas Waroop Akkala</a></p>
+    </footer>
+  </main>
+
+  <script>
+    const STAGES = [
+      { id:'planner', label:'Planning', icon:'target', desc:'Decomposes complex query into 8+ distinct sub-questions' },
+      { id:'memory', label:'Recall', icon:'database', desc:'Retrieves past lessons & vector memory to refine strategy' },
+      { id:'searcher', label:'Searching', icon:'search', desc:'Executes parallel web searches across multi-index sources' },
+      { id:'filter', label:'Analyzing', icon:'gauge', desc:'Scores source authority and extracts high-relevance chunks' },
+      { id:'synthesis', label:'Synthesizing', icon:'flask', desc:'Synthesizes findings with inline [N] citations' },
+      { id:'auditor', label:'Auditing', icon:'shield', desc:'Audits coverage gaps and triggers recursive back-searches' },
+      { id:'citer', label:'Citing', icon:'book', desc:'Verifies domain URLs and maps structured reference links' },
+      { id:'reporter', label:'Reporting', icon:'file', desc:'Compiles Master Report with Executive Summary & Evidence' },
+      { id:'scorer', label:'Scoring', icon:'chart', desc:'Scores output on 5 dimensions and saves operational lessons' },
+    ];
+    const ICONS = {
+      target:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+      database:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
+      search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+      gauge:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+      flask:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v5l4 9H5l4-9V3Z"/><path d="M5 17h14"/></svg>',
+      shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>',
+      book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>',
+      file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2Z"/><polyline points="14 2 14 8 20 8"/></svg>',
+      chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+    };
+    const PRESETS = ["How will solid-state batteries change EV manufacturing by 2030?","AI agent security risks & prompt injection defense frameworks","Latest progress in CRISPR-Cas13 therapies and regulatory approvals","Post-quantum cryptography migration roadmaps for financial networks"];
+    const DEMO_LOGS = [{pct:10,msg:'Query decomposition complete. Generated 8 parallel sub-questions.'},{pct:20,msg:'Vector recall complete. Ingested 3 historical lessons from knowledge base.'},{pct:35,msg:'Parallel web search complete. Scraped 35 primary web sources.'},{pct:50,msg:'MMR filtering complete. Scored and ranked top 1% factual chunks.'},{pct:65,msg:'Synthesis engine complete. Written multi-paragraph answers with [N] citations.'},{pct:78,msg:'Coverage auditing complete. All sub-questions rated COMPLETE.'},{pct:88,msg:'Citation mapper complete. Mapped 20 inline URLs and formatted reference links.'},{pct:94,msg:'Master report assembly complete. Applied professional markdown template.'},{pct:98,msg:'LLM-as-Judge evaluation complete. Overall Quality Score: 9.4/10.'}];
+    const REPORT = '# Deep Intelligence Report: Solid-State Battery Commercialization & EV Manufacturing Roadmap (2026-2030)\n\n**Metadata:** July 2026 · 28 Primary Sources · 8 Parallel Tracks\n\n## Executive Summary\nSolid-state battery (SSB) technology represents a fundamental paradigm shift in EV manufacturing. By replacing flammable liquid organic electrolytes with high-density solid ceramic or sulfide electrolytes, solid-state cells achieve energy densities exceeding **450 Wh/kg** — nearly double current NMC lithium-ion cells. Commercial deployment is transitioning from pilot lines to gigawatt-scale production, with major OEMs targeting high-volume integration between 2028 and 2030.\n\n## Key Findings\n\n### 1. Solid-State Electrochemistry Breakthroughs\nRecent advances in lithium metal anodes combined with sulfide-based electrolytes have successfully suppressed dendrite formation under fast-charging conditions. Laboratory testing demonstrates 80% capacity retention after **1,200 fast-charge cycles**. The elimination of conventional graphite anodes reduces battery pack weight by up to **28%**.\n\n### 2. Manufacturing Innovations\nTransitioning from wet-slurry coating to dry-electrode film lamination reduces capital expenditure per GWh by **34%**. OEM pilot facilities in Japan, South Korea, and Germany are validating dry-process throughput speeds reaching 40 meters per minute.\n\n### 3. Economic Cost Parity\nCurrent prototype SSB cell costs exceed **$210/kWh**, but techno-economic models project costs dropping to **$72/kWh by 2030**, undercutting conventional liquid-electrolyte cells. Thermal stability up to 180°C saves an additional $1,200 per vehicle.\n\n## Empirical Evidence\n- **Energy Density:** 450-520 Wh/kg (vs 260 Wh/kg liquid NMC811)\n- **Fast Charge:** 10-80% in **12 minutes** at 4C charging\n- **Thermal Safety:** Runaway onset elevated from 130°C to **210°C**\n\n## Counter-Arguments\nSulfide-based electrolytes remain highly reactive with ambient moisture, generating hazardous H₂S gas. Dry-room humidity controls must maintain dew points below **-50°C**, potentially delaying cost parity until 2032.';
+
+    let isRunning = false, timers = [];
+
+    function renderPipeline() {
+      const c = document.getElementById('pipeline-stages');
+      c.innerHTML = STAGES.map((s,i) => `<div class="pipeline-node idle" data-id="${s.id}"><span class="node-num">${String(i+1).padStart(2,'0')}</span><div class="node-icon">${ICONS[s.icon]}</div><span class="node-label">${s.label}</span></div>`).join('');
+      const b = document.getElementById('pipeline-breakdown');
+      b.innerHTML = STAGES.map((s,i) => `<div class="pipe-card"><div class="pipe-card-top"><div style="width:22px;height:22px">${ICONS[s.icon]}</div><span class="pipe-stage-num">Stage ${i+1} of 9</span></div><h3>${s.label}</h3><p>${s.desc}</p></div>`).join('');
+    }
+
+    document.querySelectorAll('.workflow-tab').forEach(t=>t.addEventListener('click',function(){
+      document.querySelectorAll('.workflow-tab').forEach(x=>x.classList.remove('active'));
+      this.classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));
+      document.getElementById('tab-'+this.dataset.tab).classList.add('active');
+    }));
+
+    function setPreset(i){ document.getElementById('demo-query').value = PRESETS[i]; }
+
+    function runDemo(){
+      if(isRunning) return;
+      isRunning = true;
+      const btn = document.getElementById('demo-btn'); btn.disabled = true;
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Executing...';
+      document.querySelectorAll('.pipeline-node').forEach(n=>n.className='pipeline-node idle');
+      document.getElementById('progress-fill').style.width = '0%';
+      document.getElementById('phase-name').textContent = STAGES[0].label;
+      document.getElementById('phase-pct').textContent = '0% Complete';
+      const lb = document.getElementById('log-body'); lb.innerHTML = '';
+      document.getElementById('report-empty').style.display = 'flex';
+      document.getElementById('report-content').style.display = 'none';
+      addLog('[1] Initializing REX Multi-Agent Research Pipeline...');
+      addLog('[2] Decomposing query into 8 distinct analytical sub-questions...');
+      timers.forEach(t=>clearTimeout(t)); timers = [];
+      const delays = [1000,2000,3500,5000,6800,8200,9500,10800,12000];
+      delays.forEach((d,i)=>{
+        const t = setTimeout(()=>{
+          for(let j=0;j<i;j++){ const p=document.querySelector(`.pipeline-node[data-id="${STAGES[j].id}"]`); if(p){p.classList.remove('idle','active');p.classList.add('done');} }
+          const n = document.querySelector(`.pipeline-node[data-id="${STAGES[i].id}"]`);
+          if(n){n.classList.remove('idle','done');n.classList.add('active');}
+          const pct = DEMO_LOGS[i].pct;
+          document.getElementById('progress-fill').style.width = pct+'%';
+          document.getElementById('phase-name').textContent = STAGES[i].label;
+          document.getElementById('phase-pct').textContent = pct+'% Complete';
+          addLog('['+pct+'%] '+DEMO_LOGS[i].msg);
+        },d); timers.push(t);
+      });
+      const ct = setTimeout(()=>{
+        document.querySelectorAll('.pipeline-node').forEach(n=>{n.classList.remove('idle','active');n.classList.add('done');});
+        document.getElementById('progress-fill').style.width = '100%';
+        document.getElementById('phase-pct').textContent = '100% Complete';
+        addLog('[100%] Research payload generated successfully!');
+        document.getElementById('report-empty').style.display = 'none';
+        document.getElementById('report-content').style.display = 'block';
+        document.getElementById('report-rendered').innerHTML = REPORT.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+        document.querySelectorAll('.workflow-tab').forEach(t=>t.classList.remove('active'));
+        document.querySelector('.workflow-tab[data-tab="report"]').classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(tc=>tc.classList.remove('active'));
+        document.getElementById('tab-report').classList.add('active');
+        isRunning = false; btn.disabled = false;
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> <span>Run Pipeline</span>';
+      },13200); timers.push(ct);
+    }
+
+    function addLog(m){ const lb=document.getElementById('log-body'); const l=document.createElement('div'); l.className='log-line'; l.textContent=m; lb.appendChild(l); lb.scrollTop=lb.scrollHeight; }
+
+    // BG Canvas
+    const canvas = document.getElementById('bg-canvas'), ctx = canvas.getContext('2d');
+    let particles = [], animId;
+    function resizeCanvas(){ const dpr=window.devicePixelRatio||1; canvas.width=window.innerWidth*dpr; canvas.height=window.innerHeight*dpr; ctx.scale(dpr,dpr); }
+    function createParticles(){ particles=[]; const c=Math.min(50,Math.floor(window.innerWidth/25)); for(let i=0;i<c;i++){ particles.push({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,vx:(Math.random()-0.5)*0.4,vy:(Math.random()-0.5)*0.4,r:Math.random()*2+0.5,h:Math.random()*360}); } }
+    function drawParticles(){
+      ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+      particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; if(p.x<0)p.x=window.innerWidth; if(p.x>window.innerWidth)p.x=0; if(p.y<0)p.y=window.innerHeight; if(p.y>window.innerHeight)p.y=0;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle=`hsla(${p.h},70%,60%,0.3)`; ctx.fill(); });
+      for(let i=0;i<particles.length;i++){for(let j=i+1;j<particles.length;j++){const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y,d=Math.sqrt(dx*dx+dy*dy); if(d<120){ctx.beginPath();ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.strokeStyle=`hsla(${(particles[i].h+particles[j].h)/2},60%,60%,${0.04*(1-d/120)})`;ctx.lineWidth=0.5;ctx.stroke();}}}
+      animId=requestAnimationFrame(drawParticles);
+    }
+    window.addEventListener('resize',()=>{ resizeCanvas(); createParticles(); });
+    resizeCanvas(); createParticles(); drawParticles();
+
+    // Scroll progress
+    window.addEventListener('scroll',()=>{
+      const h=document.documentElement.scrollHeight-window.innerHeight; const p=window.scrollY/h*100;
+      document.getElementById('scroll-progress').style.width=p+'%';
+      document.getElementById('header').classList.toggle('scrolled',window.scrollY>50);
+    });
+
+    // Intersection Observer for reveals + counters
+    const obs = new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        if(e.isIntersecting){
+          e.target.classList.add('visible');
+          // Animate counters
+          const vals = e.target.querySelectorAll('[data-count]');
+          vals.forEach(v=>{ const target=parseInt(v.dataset.count); animateCounter(v,target); });
+        }
+      });
+    },{threshold:0.1});
+    document.querySelectorAll('.reveal,.reveal-left,.reveal-right,.reveal-scale').forEach(el=>obs.observe(el));
+
+    function animateCounter(el,target){
+      if(el.dataset.animated) return; el.dataset.animated='true';
+      let current=0; const step=Math.ceil(target/60);
+      const interval = setInterval(()=>{
+        current+=step; if(current>target){current=target;clearInterval(interval);}
+        el.textContent = el.dataset.count=='100' ? current+'%' : current;
+      },16);
+    }
+
+    renderPipeline();
+  </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  celery_worker:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A celery_worker.celery_app worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+
+volumes:
+  redis_data:

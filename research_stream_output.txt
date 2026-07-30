@@ -1,0 +1,98 @@
+﻿data: {"node": "start", "session_id": "c7e044a8-cc7d-4c0e-acd7-71a5cb08a7ee"}
+
+data: {"node": "planner"}
+
+data: {"type": "thought", "message": "Analyzing query and generating sub-questions..."}
+
+data: {"type": "thought", "message": "Generated 6 research sub-questions."}
+
+data: {"node": "memory_retrieval"}
+
+data: {"type": "thought", "message": "Retrieving past research lessons and knowledge base data..."}
+
+data: {"track_id": 1, "track_text": "Which companies lead in quantum computing and what is their market position?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 1: Which companies lead in quantum computing and what is their market position?"}
+
+data: {"track_id": 2, "track_text": "What measurable ROI and business impact do quantum computing solutions show?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 2: What measurable ROI and business impact do quantum computing solutions show?"}
+
+data: {"track_id": 3, "track_text": "How do the top quantum computing platforms compare on features and performance?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 3: How do the top quantum computing platforms compare on features and performance?"}
+
+data: {"track_id": 4, "track_text": "What specific use cases and real deployments of quantum computing exist?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 4: What specific use cases and real deployments of quantum computing exist?"}
+
+data: {"track_id": 5, "track_text": "What are the key technical capabilities that define quantum computing systems?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 5: What are the key technical capabilities that define quantum computing systems?"}
+
+data: {"track_id": 6, "track_text": "What challenges and limitations affect quantum computing adoption?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 6: What challenges and limitations affect quantum computing adoption?"}
+
+data: {"type": "thought", "message": "Using 6 pre-generated sub-questions"}
+
+data: {"node": "searcher"}
+
+data: {"type": "thought", "message": "Searching the web for sources using Tavily, SerpAPI, DuckDuckGo, and Wikipedia..."}
+
+data: {"track_id": 1, "track_text": "Which companies lead in quantum computing and what is their market position?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 1"}
+
+data: {"track_id": 2, "track_text": "What measurable ROI and business impact do quantum computing solutions show?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 2"}
+
+data: {"track_id": 3, "track_text": "How do the top quantum computing platforms compare on features and performance?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 3"}
+
+data: {"track_id": 4, "track_text": "What specific use cases and real deployments of quantum computing exist?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 4"}
+
+data: {"track_id": 5, "track_text": "What are the key technical capabilities that define quantum computing systems?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 5"}
+
+data: {"node": "searcher", "source_urls": ["https://en.wikipedia.org/wiki/Quantum_key_distribution", "https://en.wikipedia.org/wiki/Quantum_computing", "https://en.wikipedia.org/wiki/Quantum_programming", "https://www.techtarget.com/whatis/definition/quantum", "https://quantumai.google/quantumcomputer"]}
+
+data: {"track_id": 6, "track_text": "What challenges and limitations affect quantum computing adoption?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 6"}
+
+data: {"node": "searcher", "source_urls": ["https://en.wikipedia.org/wiki/Quantum_key_distribution", "https://en.wikipedia.org/wiki/Quantum_computing", "https://en.wikipedia.org/wiki/Quantum_programming", "https://www.techtarget.com/whatis/definition/quantum", "https://quantumai.google/quantumcomputer", "https://www.linkedin.com/posts/keith-king-03a172128_quantum-computing-is-almost-herebut-are-activity-7295794514902888448-K5Th", "https://hackernoon.com/quantum-computing-is-schr\u00f6dingers-opportunity-5c1f2ef18695", "https://www.researchgate.net/", "https://today.umd.edu/ionq-umd-to-establish-first-of-its-kind-facility-to-provide-quantum-computing-access", "https://manus.im/"]}
+
+data: {"node": "searcher", "source_urls": ["https://en.wikipedia.org/wiki/Quantum_key_distribution", "https://en.wikipedia.org/wiki/Quantum_computing", "https://en.wikipedia.org/wiki/Quantum_programming", "https://www.techtarget.com/whatis/definition/quantum", "https://quantumai.google/quantumcomputer", "https://www.linkedin.com/posts/keith-king-03a172128_quantum-computing-is-almost-herebut-are-activity-7295794514902888448-K5Th", "https://hackernoon.com/quantum-computing-is-schr\u00f6dingers-opportunity-5c1f2ef18695", "https://www.researchgate.net/", "https://today.umd.edu/ionq-umd-to-establish-first-of-its-kind-facility-to-provide-quantum-computing-access", "https://manus.im/", "https://nexustitan.net/2026/05/21/quantum-computing-growth-quantums-mirage/", "https://qbit365.co.uk/exploring-the-intersection-of-quantum-computing-and-ai-drive", "https://qubit365.uk/small-nimbler-quantum-projects-choosing-high-impact-low-risk", "https://lovable.dev/", "https://www.linkedin.com/pulse/in-depth-analysis-middle-east-africa-topological-quantum-gnumf"]}
+
+data: {"node": "searcher", "source_urls": ["https://en.wikipedia.org/wiki/Quantum_key_distribution", "https://en.wikipedia.org/wiki/Quantum_computing", "https://en.wikipedia.org/wiki/Quantum_programming", "https://www.techtarget.com/whatis/definition/quantum", "https://quantumai.google/quantumcomputer", "https://www.linkedin.com/posts/keith-king-03a172128_quantum-computing-is-almost-herebut-are-activity-7295794514902888448-K5Th", "https://hackernoon.com/quantum-computing-is-schr\u00f6dingers-opportunity-5c1f2ef18695", "https://www.researchgate.net/", "https://today.umd.edu/ionq-umd-to-establish-first-of-its-kind-facility-to-provide-quantum-computing-access", "https://manus.im/", "https://nexustitan.net/2026/05/21/quantum-computing-growth-quantums-mirage/", "https://qbit365.co.uk/exploring-the-intersection-of-quantum-computing-and-ai-drive", "https://qubit365.uk/small-nimbler-quantum-projects-choosing-high-impact-low-risk", "https://lovable.dev/", "https://www.linkedin.com/pulse/in-depth-analysis-middle-east-africa-topological-quantum-gnumf", "https://quantumtechinsider.com/blog/quantum-cloud-platforms-compared/", "https://en.wikipedia.org/wiki/Google_Cloud_Platform", "https://quantumzeitgeist.com/physics-19-quantum-neural-network-first/", "https://quantum.cloud.ibm.com/"]}
+
+data: {"node": "searcher", "source_urls": ["https://en.wikipedia.org/wiki/Quantum_key_distribution", "https://en.wikipedia.org/wiki/Quantum_computing", "https://en.wikipedia.org/wiki/Quantum_programming", "https://www.techtarget.com/whatis/definition/quantum", "https://quantumai.google/quantumcomputer", "https://www.linkedin.com/posts/keith-king-03a172128_quantum-computing-is-almost-herebut-are-activity-7295794514902888448-K5Th", "https://hackernoon.com/quantum-computing-is-schr\u00f6dingers-opportunity-5c1f2ef18695", "https://www.researchgate.net/", "https://today.umd.edu/ionq-umd-to-establish-first-of-its-kind-facility-to-provide-quantum-computing-access", "https://manus.im/", "https://nexustitan.net/2026/05/21/quantum-computing-growth-quantums-mirage/", "https://qbit365.co.uk/exploring-the-intersection-of-quantum-computing-and-ai-drive", "https://qubit365.uk/small-nimbler-quantum-projects-choosing-high-impact-low-risk", "https://lovable.dev/", "https://www.linkedin.com/pulse/in-depth-analysis-middle-east-africa-topological-quantum-gnumf", "https://quantumtechinsider.com/blog/quantum-cloud-platforms-compared/", "https://en.wikipedia.org/wiki/Google_Cloud_Platform", "https://quantumzeitgeist.com/physics-19-quantum-neural-network-first/", "https://quantum.cloud.ibm.com/", "https://quantumzeitgeist.com/qudeleap-research-quantum-theorems-completed-lean/"]}
+
+data: {"type": "thought", "message": "Found 20 sources from web search"}
+
+data: {"node": "filter"}
+
+data: {"type": "thought", "message": "Filtering and ranking sources by relevance to each sub-question..."}
+
+data: {"node": "synthesis"}
+
+data: {"type": "thought", "message": "Synthesizing findings for each research track..."}
+
+data: {"track_id": 1, "track_text": "Which companies lead in quantum computing and what is their market position?", "track_status": "synthesizing"}
+
+data: {"type": "thought", "message": "Synthesizing for track 1"}
+
+data: {"track_id": 2, "track_text": "What measurable ROI and business impact do quantum computing solutions show?", "track_status": "synthesizing"}
+
+data: {"type": "thought", "message": "Synthesizing for track 2"}
+
+data: {"track_id": 3, "track_text": "How do the top quantum computing platforms compare on features and performance?", "track_status": "synthesizing"}
+
+data: {"type": "thought", "message": "Synthesizing for track 3"}
+
