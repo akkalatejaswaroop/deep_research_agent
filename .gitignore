@@ -35,3 +35,6 @@ test_*.txt
 *.pem
 .idea/
 .vscode/
+
+# Local Netlify folder
+.netlify

@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const API_PORT = process.env.API_PORT || process.env.NEXT_PUBLIC_API_PORT || "8000";
 
 const nextConfig: NextConfig = {
+  output: "export",
+  images: { unoptimized: true },
   async rewrites() {
     return [
       {
