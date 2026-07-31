@@ -55,6 +55,23 @@ class ResearchQuery(BaseModel):
     subQuestions: int = 8
     options: dict = {}
 
+@app.get("/")
+async def root():
+    return {
+        "service": "REX — Recursive Exploration eXplorer",
+        "version": "2.0.0",
+        "status": "ok",
+        "endpoints": {
+            "health": "/health",
+            "start_research": "POST /api/v1/research/",
+            "sessions": "/api/v1/sessions",
+            "learning_history": "/api/v1/learning-history",
+            "trending_topics": "/api/v1/trending-topics",
+            "docs": "/docs",
+        },
+        "frontend": "http://localhost:3000",
+    }
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": "REX — Recursive Exploration eXplorer"}
@@ -569,48 +586,26 @@ def _call_llm_once(prompt: str, system_prompt: str = "", temperature: float = 0.
         prompt = prompt[:max_prompt_chars] + "\n...[truncated]..."
 
     try:
-        import subprocess as _sp, json as _json, tempfile, os as _os
         full_prompt = (system_prompt + "\n\n" + prompt) if system_prompt else prompt
-        body = _json.dumps({
+        body = {
             "model": model,
             "prompt": full_prompt,
             "temperature": temperature,
             "stream": False,
             "options": {"num_predict": 4096}
-        })
-        tf = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8")
-        tf.write(body)
-        tf.close()
-        try:
-            r = _sp.run(
-                ["curl.exe", "-s", "--max-time", "120",
-                 "-d", f"@{tf.name}",
-                 "http://127.0.0.1:11434/api/generate"],
-                capture_output=True, timeout=125
-            )
-        except _sp.TimeoutExpired:
-            _llm_print_once(f"  [LLM SUBPROCESS TIMEOUT] model={model}")
+        }
+        r = requests.post(
+            "http://127.0.0.1:11434/api/generate",
+            json=body,
+            timeout=120
+        )
+        if r.status_code != 200:
+            _llm_print_once(f"  [LLM ERROR] status={r.status_code} body={r.text[:200]}")
             return ""
-        finally:
-            try:
-                _os.unlink(tf.name)
-            except Exception:
-                pass
-        raw_stdout = r.stdout.decode("utf-8", errors="replace") if r.stdout else ""
-        raw_stderr = r.stderr.decode("utf-8", errors="replace") if r.stderr else ""
-        if r.returncode == 28:
-            _llm_print_once(f"  [LLM TIMEOUT] model={model} prompt_len={len(prompt)}")
-            return ""
-        if r.returncode != 0:
-            _llm_print_once(f"  [LLM ERROR] returncode={r.returncode} stderr={raw_stderr[:200]}")
-            return ""
-        if not raw_stdout.strip():
-            _llm_print_once(f"  [LLM EMPTY] empty response")
-            return ""
-        data = _json.loads(raw_stdout)
+        data = r.json()
         return data.get("response", "")
-    except _json.JSONDecodeError as e:
-        _llm_print_once(f"  [LLM JSON ERROR] {e}")
+    except requests.exceptions.Timeout:
+        _llm_print_once(f"  [LLM TIMEOUT] model={model} prompt_len={len(prompt)}")
         return ""
     except Exception as e:
         _llm_print_once(f"  [LLM ERROR] {e}")
@@ -753,8 +748,9 @@ analytical sub-questions for the query. Past lessons to incorporate:
 Query: {query}
 
 Return ONLY a JSON list of strings: {{"sub_questions": [...]}}"""
+            ollama_host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
             resp = _req.post(
-                "http://localhost:11434/api/generate",
+                f"{ollama_host}/api/generate",
                 json={"model": os.getenv("PLANNER_MODEL", "phi3:mini"), "prompt": prompt, "stream": False, "options": {"temperature": 0.3, "num_predict": 512}},
                 timeout=30
             )

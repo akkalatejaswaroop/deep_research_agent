@@ -1,62 +1,100 @@
-"""End-to-end test: sends a research query and streams the SSE response."""
+import urllib.request
 import json
 import sys
-import urllib.request
+import io
+import re
 import time
-import ssl
 
-def main():
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-    payload = json.dumps({"query": "What is the capital of France?", "mode": "fast", "model": "ollama"}).encode()
-    req = urllib.request.Request(
-        "http://127.0.0.1:8001/api/v1/research",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-        method="POST"
-    )
+body = json.dumps({
+    'query': 'What is deep learning?',
+    'depth': 1,
+    'complexity': 1,
+    'paragraphs': 2,
+    'subQuestions': 4
+}).encode()
 
-    MAX_LINES = 80
-    STATUS_TIMEOUT = 90
-    start = time.time()
+req = urllib.request.Request(
+    'http://127.0.0.1:8000/api/v1/research/',
+    data=body,
+    headers={'Content-Type': 'application/json'}
+)
 
-    try:
-        resp = urllib.request.urlopen(req, context=ctx, timeout=STATUS_TIMEOUT)
-        content_type = resp.headers.get("Content-Type", "")
-        print(f"Content-Type: {content_type}", flush=True)
-        print(f"Status: {resp.status}", flush=True)
+t0 = time.time()
+try:
+    resp = urllib.request.urlopen(req, timeout=300)
+    buffer = b''
+    while True:
+        chunk = resp.read(8192)
+        if not chunk:
+            break
+        buffer += chunk
+except Exception as e:
+    sys.stdout.write('ERROR: ' + str(e) + '\n')
+    sys.stdout.flush()
+    exit(1)
 
-        lines_read = 0
-        for line in resp:
-            text = line.decode("utf-8", errors="replace").strip()
-            if text.startswith("data: "):
-                text = text[6:]
-            if text == "[DONE]":
-                print("[DONE]", flush=True)
-                break
-            if text:
-                print(f"  {text[:250]}", flush=True)
-                lines_read += 1
-                if "error" in text.lower() or "fail" in text.lower():
-                    print("ERROR DETECTED!", flush=True)
-            if lines_read >= MAX_LINES:
-                print("... (truncated)", flush=True)
-                break
-            elapsed = time.time() - start
-            if elapsed > STATUS_TIMEOUT:
-                print(f"\nTIMED OUT after {elapsed:.0f}s", flush=True)
-                break
+text = buffer.decode('utf-8', errors='replace')
+elapsed = time.time() - t0
 
-        print(f"\nTest completed. Lines: {lines_read}, Elapsed: {time.time()-start:.1f}s", flush=True)
-    except Exception as e:
-        elapsed = time.time() - start
-        print(f"FAILED after {elapsed:.0f}s: {e}", flush=True)
-        if hasattr(e, 'read'):
-            body = e.read().decode('utf-8', errors='replace')[:500]
-            print(f"Response body: {body}", flush=True)
-        sys.exit(1)
+# Parse events
+report = None
+scores = None
+nodes = []
+thoughts = []
+for line in text.split('\n'):
+    if line.startswith('data: '):
+        try:
+            data = json.loads(line[6:])
+            if 'report' in data:
+                report = data['report']
+            if data.get('type') == 'quality_scores':
+                scores = data
+            if 'node' in data and isinstance(data.get('node'), str):
+                if data['node'] not in ('start', ''):
+                    nodes.append(data['node'])
+            if data.get('type') == 'thought':
+                thoughts.append(data['message'][:80])
+        except:
+            pass
 
-if __name__ == "__main__":
-    main()
+sys.stdout.write(f'Time: {elapsed:.1f}s\n')
+sys.stdout.write(f'Events: {len(text.split(chr(10)))} lines\n')
+sys.stdout.write(f'Nodes executed: {len(set(nodes))} - {list(dict.fromkeys(nodes))}\n')
+
+if scores:
+    s = scores['scores']
+    sys.stdout.write(f'Quality: rel={s.get("relevance")} depth={s.get("depth")} nov={s.get("novelty")} coh={s.get("coherence")} cit={s.get("citation_accuracy")} overall={scores.get("overall")}\n')
+
+if report:
+    sys.stdout.write(f'Report: {len(report)} chars\n')
+    # Check structure
+    headers = re.findall(r'^## (.+)$', report, re.MULTILINE)
+    sys.stdout.write(f'Sections: {headers}\n')
+    # Check for issues
+    issues = []
+    if 'INSUFFICIENT EVIDENCE' in report:
+        issues.append('INSUFFICIENT_EVIDENCE markers')
+    sections = re.split(r'^## ', report, flags=re.MULTILINE)
+    empty_count = 0
+    for s in sections[1:]:
+        h = s.split('\n')[0].strip()
+        b = '\n'.join(s.split('\n')[1:]).strip()
+        if not b or len(b) < 50:
+            empty_count += 1
+            issues.append(f'empty section: {h}')
+    if empty_count:
+        sys.stdout.write(f'Empty sections: {empty_count}\n')
+    sys.stdout.write(f'Issues: {issues if issues else "None"}\n')
+    sys.stdout.write('\n--- Report Preview (first 1500 chars) ---\n')
+    sys.stdout.write(report[:1500] + '\n')
+else:
+    sys.stdout.write('NO REPORT FOUND\n')
+    # Show last few events
+    last_events = text.split('\n')[-10:]
+    sys.stdout.write('Last events:\n')
+    for ev in last_events:
+        sys.stdout.write('  ' + ev[:200] + '\n')
+
+sys.stdout.flush()
