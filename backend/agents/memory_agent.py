@@ -348,6 +348,16 @@ def _validate_frontmatter(fm: Dict[str, Any], is_update: bool = False, existing_
                 errs.append(f"claim missing {k}")
         if "claim_class" in fm and fm["claim_class"] not in {"fact","interpretation","hypothesis","speculation"}:
             errs.append("bad claim_class")
+        # Provenance gate (Prompt 11): no claim without provenance.
+        sup = fm.get("supporting_sources") or []
+        LEGIT = {"generated", "hypothesis", "internal_experiment", "unverified"}
+        if len(sup) == 0:
+            tags = set(fm.get("tags") or [])
+            hit = [t for t in LEGIT if t in tags]
+            if len(hit) != 1:
+                errs.append("no-claim-without-provenance: empty supporting_sources requires EXACTLY ONE "
+                            "exempt tag: generated|hypothesis|internal_experiment|unverified "
+                            f"(found {len(hit)}: {hit})")
     if fm.get("type") == "experiment":
         for k in ["hypothesis","method","variables","result","benchmark","score"]:
             if k not in fm:
@@ -639,11 +649,12 @@ def _pre_write_check(
 
 @mcp_tool("search_notes")
 def search_notes(query: str, type: Optional[str] = None, status: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
-    """Search notes by semantic similarity + optional type/status filter."""
-    if not query:
+    """Search notes by semantic similarity + optional type/status filter.
+    Empty query + filters => metadata-style listing of matching notes."""
+    if not query and not type and not status:
         return []
-    # use embedding index
-    scored = _embedding_index.search(query, top_k=limit*2)
+    # use embedding index (skip for empty query — zero vector is meaningless)
+    scored = _embedding_index.search(query, top_k=limit*2) if query else []
     results = []
     for nid, score in scored:
         p = _vault_file_path(nid)
@@ -898,6 +909,18 @@ def _write_file_via_fs(path: Path, content: str):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
 
+def _git_commit_vault(action: str, note_id: str, agent: str, reason: str):
+    """Tamper-evident provenance trail #2: every Memory Agent write lands as a
+    git commit whose message carries note id + agent + changelog reason.
+    Manual edits outside the agent therefore show up as uncommitted diffs."""
+    try:
+        import subprocess
+        msg = f"{action}: {note_id} | agent={agent} | {str(reason)[:80]}"
+        subprocess.run(["git", "add", "-A"], cwd=str(VAULT_PATH), capture_output=True, timeout=5)
+        subprocess.run(["git", "commit", "-m", msg], cwd=str(VAULT_PATH), capture_output=True, timeout=5)
+    except Exception:
+        pass
+
 def _slugify(title: str) -> str:
     s = title.lower()
     s = re.sub(r"[^a-z0-9]+", "-", s)
@@ -958,11 +981,20 @@ def create_note(type: str, frontmatter: Dict[str, Any], body: str, relationships
         # we need claim_a/b — assume new note is claim, existing is claim
         new_id = frontmatter.get("id")
         existing_id = check["existing_id"]
-        # create contradiction automatically
-        ctr = create_contradiction(existing_id, new_id, detected_in_run=run_id)
+        # create contradiction automatically; the new note does not exist yet,
+        # so pass its title directly and never read it from disk
+        try:
+            ctr = create_contradiction(existing_id, new_id, detected_in_run=run_id,
+                                       new_title=frontmatter.get("title", ""))
+        except Exception as ctr_err:
+            return {"ok": False, "contradiction": True, "error": str(ctr_err),
+                    "existing_id": existing_id,
+                    "message": f"Contradiction detected but reroute failed: {ctr_err}"}
         return {"ok": False, "contradiction": True, "contradiction_id": ctr.get("id"), "existing_id": existing_id, "message": "Contradiction detected, rerouted"}
     # use possibly mutated body from check
     body = check.get("body", body)
+    # capture the exact text used for classification so stored vectors stay comparable
+    _index_text = frontmatter.get("title", "") + " " + body[:800]
     # validate frontmatter
     errs = _validate_frontmatter(frontmatter)
     if errs:
@@ -1006,15 +1038,10 @@ def create_note(type: str, frontmatter: Dict[str, Any], body: str, relationships
             _write_file_via_fs(path, content)
     else:
         _write_file_via_fs(path, content)
-    # update embedding index incrementally
-    _embedding_index.upsert(nid, frontmatter.get("title","") + " " + body[:800])
-    # git add/commit is handled by caller or via filesystem watcher; here we do git add
-    try:
-        import subprocess
-        subprocess.run(["git","add", str(path)], cwd=str(VAULT_PATH), capture_output=True, timeout=2)
-        subprocess.run(["git","commit","-m", f"create: {nid} {frontmatter.get('title','')[:40]}"], cwd=str(VAULT_PATH), capture_output=True, timeout=2)
-    except Exception:
-        pass
+    # update embedding index incrementally (use classification-time text, not changelog-appended body)
+    _embedding_index.upsert(nid, _index_text)
+    # tamper-evident provenance trail (git)
+    _git_commit_vault("create", nid, frontmatter.get("agent", "system"), reason)
     return {"ok": True, "id": nid, "path": rel_path, "version": frontmatter["version"]}
 
 @mcp_tool("update_note")
@@ -1051,11 +1078,16 @@ def update_note(id: str, expected_version: int, changes: Dict[str, Any], changel
         new_fm["version"] = int(fm.get("version", 0)) + 1
         new_fm["updated"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         new_body = _ensure_changelog(new_body, new_fm["version"], changelog_reason, new_fm.get("agent","system"), run_id)
-        # ensure at least one new wikilink unless orphan-intentional (Rules 17-19)
-        old_links = set(_extract_wikilinks(body))
-        new_links = set(_extract_wikilinks(new_body))
+        # Rule 17 — new WikiLink required, counted across the FULL note
+        # (frontmatter links like supporting_sources are real graph edges).
+        # Lifecycle-only transitions (status field alone) are exempt: the move
+        # itself is logged in changelog + git message.
+        lifecycle_only = (set(changes.get("frontmatter", {}).keys()) <= {"status"}
+                          and "body" not in changes)
+        old_links = set(_extract_wikilinks(str(fm))) | set(_extract_wikilinks(body))
+        new_links = set(_extract_wikilinks(str(new_fm))) | set(_extract_wikilinks(new_body))
         has_new = len(new_links - old_links) > 0
-        if not has_new and "orphan-intentional" not in (new_fm.get("tags") or []):
+        if not has_new and "orphan-intentional" not in (new_fm.get("tags") or []) and not lifecycle_only:
             raise ValueError("Missing new WikiLink: at least one new [[WikiLink]] required (Rule 17) or tag #orphan-intentional")
         if "orphan-intentional" in (new_fm.get("tags") or []) and "> Orphan justification:" not in new_body:
             raise ValueError("Orphan justification required (Rule 19)")
@@ -1073,12 +1105,7 @@ def update_note(id: str, expected_version: int, changes: Dict[str, Any], changel
     else:
         _write_file_via_fs(p, content)
     _embedding_index.upsert(id, new_fm.get("title","") + " " + new_body[:800])
-    try:
-        import subprocess
-        subprocess.run(["git","add", str(p)], cwd=str(VAULT_PATH), capture_output=True, timeout=2)
-        subprocess.run(["git","commit","-m", f"update: {id} v{new_fm['version']} {changelog_reason[:40]}"], cwd=str(VAULT_PATH), capture_output=True, timeout=2)
-    except Exception:
-        pass
+    _git_commit_vault(f"update:v{new_fm['version']}", id, new_fm.get("agent", "system"), changelog_reason)
     return {"ok": True, "id": id, "version": new_fm["version"]}
 
 @mcp_tool("add_links")
@@ -1120,21 +1147,204 @@ def update_metadata(id: str, expected_version: int, fields: Dict[str, Any], run_
     else:
         _write_file_via_fs(p, content)
     _embedding_index.upsert(id, new_fm.get("title","") + " " + data["body"][:800])
+    _git_commit_vault("metadata", id, new_fm.get("agent", "system"), f"metadata-only: {sorted(fields.keys())}")
     return {"ok": True, "id": id, "version": new_fm["version"]}
 
+@mcp_tool("apply_evolution_to_note")
+def apply_evolution_to_note(note_id: str, expected_version: int, proposal_id: str,
+                            changelog_reason: str, run_id: str = "default") -> Dict[str, Any]:
+    """Stamp `changed_by: [[PRP-...]]` when an accepted evolution's effect touches
+    this knowledge note. Answers 'What evolution changed it?' by query."""
+    # verify proposal exists and is an evolution_proposal in a mutable state
+    prop = read_note(proposal_id)
+    if prop["frontmatter"].get("type") != "evolution_proposal":
+        raise ValueError(f"{proposal_id} is not an evolution_proposal")
+    if prop["frontmatter"].get("status") not in {"TESTING", "ACCEPTED"}:
+        raise ValueError(f"{proposal_id} status {prop['frontmatter'].get('status')} — only TESTING/ACCEPTED effects may be applied")
+    data = read_note(note_id)
+    old = data["frontmatter"].get("changed_by") or []
+    merged = list(dict.fromkeys(list(old) + [f"[[{proposal_id}]]"]))
+    reason = f"applied {proposal_id}: {changelog_reason}"
+    return update_note(note_id, expected_version,
+                       {"frontmatter": {"changed_by": merged}},
+                       changelog_reason=reason, run_id=run_id)
+
+# ---------------------------------------------------------------------------
+# Provenance READ tools (Prompt 11) — provenance as queryable trail
+# ---------------------------------------------------------------------------
+
+def _scan_notes(skip_archive=False):
+    for p in VAULT_PATH.rglob("*.md"):
+        s = str(p)
+        if ".obsidian" in s or p.name == "README.md":
+            continue
+        if skip_archive and "99_Archive" in s:
+            continue
+        try:
+            fm, body = _parse_frontmatter(p.read_text(encoding="utf-8"))
+            rel = str(p.relative_to(VAULT_PATH)).replace("\\", "/")
+            yield fm, body, rel
+        except Exception:
+            continue
+
+@mcp_tool("get_creating_runs")
+def get_creating_runs(note_id: str) -> List[Dict[str, Any]]:
+    """Reverse lookup: which Run records link this note in linked_notes?"""
+    out = []
+    for fm, body, rel in _scan_notes():
+        if fm.get("type") != "research_run":
+            continue
+        linked = [str(x) for x in (fm.get("linked_notes") or [])]
+        linked_ids = [re.sub(r"[\[\]]", "", x).split("__")[0] for x in linked]
+        if any(note_id == x or note_id.startswith(x) or x.startswith(note_id) for x in linked_ids):
+            out.append({"id": fm.get("id"), "title": fm.get("title"), "path": rel,
+                        "result": fm.get("result"), "agent": fm.get("agent"),
+                        "created": fm.get("created")})
+    return out
+
+@mcp_tool("get_dependents")
+def get_dependents(note_id: str) -> List[Dict[str, Any]]:
+    """Reverse WikiLink search: notes whose depends_on/derived_from/part_of/implements/tested_by point at note_id."""
+    verbs = ("depends_on", "derived_from", "part_of", "implements", "tested_by", "supports")
+    out = []
+    for fm, body, rel in _scan_notes(skip_archive=True):
+        if str(fm.get("id", "")).startswith(note_id) or note_id.startswith(str(fm.get("id", "###"))):
+            continue  # skip self
+        m = re.search(r"## Relationships\n(.*?)(?:\n## |\Z)", body, re.S)
+        if not m:
+            continue
+        for line in m.group(1).splitlines():
+            lm = re.match(r"-\s*(\w+)::\s*\[\[([^\]]+)\]\]", line.strip())
+            if lm and lm.group(1) in verbs:
+                target = lm.group(2).split("__")[0]
+                if target == note_id:
+                    out.append({"from_id": fm.get("id"), "from_title": fm.get("title"),
+                                "relationship": lm.group(1), "path": rel})
+                    break
+    return out
+
+@mcp_tool("get_contradictions_for")
+def get_contradictions_for(note_id: str) -> Dict[str, Any]:
+    """contradicting_sources on the note itself + CTR notes linking it."""
+    try:
+        data = read_note(note_id)
+        own = [str(x) for x in (data["frontmatter"].get("contradicting_sources") or [])]
+    except Exception:
+        own = []
+    ctrs = []
+    for fm, body, rel in _scan_notes():
+        if fm.get("type") != "contradiction":
+            continue
+        fields = str(fm.get("claim_a", "")) + str(fm.get("claim_b", ""))
+        rel_section = re.search(r"## Relationships\n(.*?)(?:\n## |\Z)", body, re.S)
+        rel_txt = rel_section.group(1) if rel_section else ""
+        if note_id in re.sub(r"[\[\]]", "", fields) or f"contradicts:: [[{note_id}" in rel_txt:
+            ctrs.append({"id": fm.get("id"), "resolution_status": fm.get("resolution_status"),
+                         "title": fm.get("title"), "path": rel})
+    return {"own_contradicting_sources": own, "contradiction_notes": ctrs}
+
+@mcp_tool("get_evidence_diff")
+def get_evidence_diff(note_id: str) -> List[Dict[str, Any]]:
+    """Diff supporting_sources across git history (oldest -> newest).
+    Answers: What evidence increased its confidence? Version bumps correspond to commits."""
+    import subprocess
+    try:
+        rel = read_note(note_id)["path"]
+    except Exception as e:
+        raise FileNotFoundError(f"{note_id}: {e}")
+    log = subprocess.run(
+        ["git", "log", "--date=iso-strict", "--format=%H|%ad|%s", "--follow", "--", rel.replace("/", "\\")],
+        cwd=str(VAULT_PATH), capture_output=True, text=True, timeout=10)
+    lines = [l for l in (log.stdout or "").splitlines() if "|" in l]
+    if not lines:
+        log2 = subprocess.run(
+            ["git", "log", "--date=iso-strict", "--format=%H|%ad|%s", "--", rel],
+            cwd=str(VAULT_PATH), capture_output=True, text=True, timeout=10)
+        lines = [l for l in (log2.stdout or "").splitlines() if "|" in l]
+        rel_use = rel
+    else:
+        rel_use = None
+    commits = []  # oldest first
+    for line in reversed(lines):
+        sha, date, msg = line.split("|", 2)
+        show = subprocess.run(["git", "show", f"{sha}:{rel_use or rel}"],
+                              cwd=str(VAULT_PATH), capture_output=True, text=True, timeout=10)
+        fm, _b = _parse_frontmatter(show.stdout or "")
+        sup = set()
+        for s in (fm.get("supporting_sources") or []):
+            sup.add(re.sub(r"[\[\]]", "", str(s)).split("__")[0])
+        commits.append({"sha": sha[:10], "date": date, "message": msg, "sources": sup})
+    out = []
+    prev = set()
+    for c in commits:
+        added = sorted(c["sources"] - prev)
+        removed = sorted(prev - c["sources"])
+        if added or removed or not prev:
+            out.append({"sha": c["sha"], "date": c["date"], "message": c["message"],
+                        "added": added, "removed": removed})
+        prev = c["sources"]
+    return out
+
+@mcp_tool("get_evolution_for_note")
+def get_evolution_for_note(note_id: str) -> Dict[str, Any]:
+    """changed_by field on the note + proposals/mutations whose evidence/body references it."""
+    try:
+        changed_by = list(read_note(note_id)["frontmatter"].get("changed_by") or [])
+    except Exception:
+        changed_by = []
+    refs = []
+    for fm, body, rel in _scan_notes():
+        if fm.get("type") not in {"evolution_proposal", "genome"}:
+            continue
+        hay = json.dumps(fm.get("evidence", []), default=str) + body[:2000] + json.dumps(fm.get("linked_notes", []) or [], default=str)
+        if note_id in re.sub(r"[\[\]]", "", hay):
+            refs.append({"id": fm.get("id"), "type": fm.get("type"), "status": fm.get("status"),
+                         "title": fm.get("title"), "path": rel})
+    return {"changed_by": changed_by, "referencing_artifacts": refs}
+
+@mcp_tool("get_provenance")
+def get_provenance(note_id: str) -> Dict[str, Any]:
+    """One-call backward chain: who/when/why/evidence/runs/evolution."""
+    import subprocess
+    d = read_note(note_id)
+    fm, body = d["frontmatter"], d["body"]
+    ch = re.search(r"## Changelog\n(.*?)(?:\n## |\Z)", body, re.S)
+    changelog = [l.strip() for l in (ch.group(1).splitlines() if ch else []) if l.strip().startswith("-")]
+    gl = subprocess.run(["git", "log", "-1", "--format=%h %ad %s", "--date=iso-strict", "--",
+                         d["path"].replace("/", "\\")],
+                        cwd=str(VAULT_PATH), capture_output=True, text=True, timeout=10)
+    return {
+        "id": fm.get("id"), "type": fm.get("type"), "title": fm.get("title"),
+        "created_by_agent": fm.get("agent"), "created": fm.get("created"), "updated": fm.get("updated"),
+        "version": fm.get("version"), "confidence": fm.get("confidence"),
+        "supporting_sources": fm.get("supporting_sources", []),
+        "contradicting_sources": fm.get("contradicting_sources", []),
+        "changed_by": fm.get("changed_by") or [],
+        "changelog": changelog,
+        "creating_runs": get_creating_runs(fm.get("id")),
+        "contradictions": get_contradictions_for(fm.get("id")),
+        "dependents": get_dependents(fm.get("id")),
+        "evolution": get_evolution_for_note(fm.get("id")),
+        "evidence_history": get_evidence_diff(fm.get("id")),
+        "last_git_commit": (gl.stdout or "").strip(),
+    }
+
 @mcp_tool("create_contradiction")
-def create_contradiction(claim_a: str, claim_b: str, detected_in_run: str, run_id: str = "default") -> Dict[str, Any]:
-    """Create CTR note linking two claims. Does NOT alter original claims' content (Rule 4/5)."""
+def create_contradiction(claim_a: str, claim_b: str, detected_in_run: str, run_id: str = "default", new_title: str = "") -> Dict[str, Any]:
+    """Create CTR note linking two claims. Does NOT alter original claims' content (Rule 4/5).
+    claim_b may be a not-yet-written note id when rerouting from _pre_write_check — pass its title via new_title."""
     _check_rate_limit(run_id)
     if claim_a == claim_b:
         raise ValueError("claim_a and claim_b must be distinct")
-    # verify claims exist
+    # verify claims exist (claim_b may legitimately not exist yet when rerouting)
     for cid in (claim_a, claim_b):
         try:
             d = read_note(cid)
             if d["frontmatter"].get("type") not in {"claim","fact"}:
                 raise ValueError(f"{cid} not a claim/fact")
         except FileNotFoundError:
+            if cid == claim_b and new_title:
+                continue  # reroute case: the triggering note was never written
             raise ValueError(f"claim {cid} not found")
     # generate CTR id first so we can link claims to it (satisfies Rule 17 new WikiLink)
     import uuid, datetime

@@ -2437,12 +2437,18 @@ Rules:
                         "status": "draft" if is_low else "active",
                         "confidence": conf,
                         "created": _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime()),
-                        "updated": _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime()),
+                        "updated": _time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                         "version": 1,
                         "source_count": 0,
                         "agent": "memory",
                         "tags": ["needs-verification"] if is_low else [],
                     }
+                    # Provenance gate (Prompt 11): unsourced claims must carry exactly one
+                    # provenance-exempt tag so dashboards never count them as sourced.
+                    if vault_type == "claim":
+                        LEGIT = {"generated", "hypothesis", "internal_experiment", "unverified"}
+                        if not any(t in fm_new["tags"] for t in LEGIT):
+                            fm_new["tags"].append("unverified")
                     # Add type-specific required fields with defaults
                     if vault_type == "claim":
                         fm_new.update({"evidence_strength": "weak", "supporting_sources": [], "contradicting_sources": [], "claim_class": "hypothesis"})
