@@ -290,7 +290,8 @@ def _reset_rate_limit(run_id: str):
 _ALLOWED_TYPES = {
     "fact", "claim", "hypothesis", "concept", "definition", "technique",
     "framework", "source", "experiment", "result", "failure", "lesson",
-    "decision", "evolution_proposal", "agent", "research_question", "project", "contradiction"
+    "decision", "evolution_proposal", "agent", "research_question", "project", "contradiction",
+    "research_run"
 }
 # also allow system for 00_System
 _ALLOWED_TYPES_SYS = _ALLOWED_TYPES | {"system"}
@@ -301,7 +302,7 @@ _CODE_MAP = {
     "experiment": "EXP", "result": "RES", "failure": "FAL", "lesson": "LSN",
     "decision": "DEC", "evolution_proposal": "PRP", "agent": "AGT",
     "research_question": "QST", "project": "PRJ", "contradiction": "CTR",
-    "system": "SYS",
+    "research_run": "RUN", "system": "SYS",
 }
 _ULID_RE = re.compile(r"^[A-Z]{2,3}-[0-9A-HJKMNP-TV-Z]{26}$")
 
@@ -369,6 +370,10 @@ def _validate_frontmatter(fm: Dict[str, Any], is_update: bool = False, existing_
         for k in ["derived_from","applies_to"]:
             if k not in fm:
                 errs.append(f"lesson missing {k}")
+    if fm.get("type") == "research_run":
+        for k in ["query","sub_questions","report","citations","linked_notes","classification_table","token_counts"]:
+            if k not in fm:
+                errs.append(f"research_run missing {k}")
     return errs
 
 def _validate_status_transition(old_status: str, new_status: str, fm_type: str) -> Optional[str]:
@@ -871,6 +876,7 @@ def _resolve_type_folder(note_type: str) -> Path:
         "research_question": VAULT_PATH / "01_Research/Questions",
         "project": VAULT_PATH / "07_Projects",
         "contradiction": VAULT_PATH / "05_Evolution/Contradictions",
+        "research_run": VAULT_PATH / "04_Experiments/Runs",
         "system": VAULT_PATH / "00_System",
     }
     # source sub-types
