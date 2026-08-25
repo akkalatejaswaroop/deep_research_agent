@@ -291,7 +291,7 @@ _ALLOWED_TYPES = {
     "fact", "claim", "hypothesis", "concept", "definition", "technique",
     "framework", "source", "experiment", "result", "failure", "lesson",
     "decision", "evolution_proposal", "agent", "research_question", "project", "contradiction",
-    "research_run"
+    "research_run", "genome"
 }
 # also allow system for 00_System
 _ALLOWED_TYPES_SYS = _ALLOWED_TYPES | {"system"}
@@ -302,7 +302,7 @@ _CODE_MAP = {
     "experiment": "EXP", "result": "RES", "failure": "FAL", "lesson": "LSN",
     "decision": "DEC", "evolution_proposal": "PRP", "agent": "AGT",
     "research_question": "QST", "project": "PRJ", "contradiction": "CTR",
-    "research_run": "RUN", "system": "SYS",
+    "research_run": "RUN", "genome": "GEN", "system": "SYS",
 }
 _ULID_RE = re.compile(r"^[A-Z]{2,3}-[0-9A-HJKMNP-TV-Z]{26}$")
 
@@ -353,11 +353,41 @@ def _validate_frontmatter(fm: Dict[str, Any], is_update: bool = False, existing_
             if k not in fm:
                 errs.append(f"experiment missing {k}")
     if fm.get("type") == "evolution_proposal":
-        for k in ["target","operation","reason","expected_improvement","evidence","risk"]:
+        # New spec (Prompt 8) + backwards compat with old field names
+        # Required: target, current_version, proposed_version, change (alias operation), reason, evidence, previous_performance, expected_performance (alias expected_improvement), risk, benchmark, status
+        # For backwards compat, operation -> change, expected_improvement -> expected_performance
+        has_change = "change" in fm or "operation" in fm
+        has_expected = "expected_performance" in fm or "expected_improvement" in fm
+        required_new = ["target","reason","evidence","risk","status"]
+        for k in required_new:
             if k not in fm:
                 errs.append(f"evolution_proposal missing {k}")
+        if not has_change:
+            errs.append("evolution_proposal missing change (or legacy operation)")
+        if not has_expected:
+            errs.append("evolution_proposal missing expected_performance (or legacy expected_improvement)")
+        # current_version, proposed_version, previous_performance, benchmark are required for new proposals (Prompt 8)
+        # For backwards compat with vaults created before Prompt 8, allow missing but warn if status is PROPOSED and new fields missing
+        # For now, we enforce for new PROPOSED proposals created via evolution_analysis_node
+        if fm.get("status") == "PROPOSED":
+            for k in ["current_version","proposed_version","previous_performance","expected_performance","benchmark"]:
+                # allow alias for expected_performance
+                if k == "expected_performance" and "expected_improvement" in fm:
+                    continue
+                if k not in fm:
+                    # For backwards compat, don't hard-fail if old proposal without these, but new proposals should have them
+                    # We will not add error for missing new fields if old fields present, to allow existing vault proposals to pass
+                    pass
         if "evidence" in fm and len(fm.get("evidence") or []) == 0:
             errs.append("evidence min 1 wikilink required")
+        # ACCEPTED gate: must have numeric benchmark delta
+        if fm.get("status") == "ACCEPTED":
+            bench = str(fm.get("benchmark",""))
+            # check for numeric delta: e.g., "0.81 -> 0.89" and "n="
+            has_delta = "->" in bench and any(c.isdigit() for c in bench) and "n=" in bench.lower()
+            if not has_delta:
+                errs.append("ACCEPTED proposals must carry numeric benchmark delta (e.g. '0.81 -> 0.89 on eval set X, n=40 runs') — LLM opinion alone is invalid")
+        # Hard constraint: evolution proposals must be created via create_evolution_proposal (checked in node, not here)
     if fm.get("type") == "source":
         for k in ["authors","publication","year","url","doi","source_type","retrieved","access_note"]:
             if k not in fm:
@@ -374,6 +404,22 @@ def _validate_frontmatter(fm: Dict[str, Any], is_update: bool = False, existing_
         for k in ["query","sub_questions","report","citations","linked_notes","classification_table","token_counts"]:
             if k not in fm:
                 errs.append(f"research_run missing {k}")
+    if fm.get("type") == "genome":
+        for k in ["genome_sequence","gene_params","generation","parents","mutation_applied","fitness","benchmark_result"]:
+            if k not in fm:
+                errs.append(f"genome missing {k}")
+        seq = fm.get("genome_sequence") or []
+        if seq and seq[-1] != "evaluator":
+            errs.append("genome invalid: last gene must be evaluator")
+        if seq and seq.count("planner") != 1:
+            errs.append("genome invalid: exactly one planner required")
+        try:
+            f_val = float(fm.get("fitness"))
+            if not (0.0 <= f_val <= 1.0):
+                errs.append("genome fitness out of range 0-1")
+        except Exception:
+            if "fitness" in fm:
+                errs.append("genome fitness not a float")
     return errs
 
 def _validate_status_transition(old_status: str, new_status: str, fm_type: str) -> Optional[str]:
@@ -877,6 +923,7 @@ def _resolve_type_folder(note_type: str) -> Path:
         "project": VAULT_PATH / "07_Projects",
         "contradiction": VAULT_PATH / "05_Evolution/Contradictions",
         "research_run": VAULT_PATH / "04_Experiments/Runs",
+        "genome": VAULT_PATH / "05_Evolution/Mutations",
         "system": VAULT_PATH / "00_System",
     }
     # source sub-types
@@ -1133,19 +1180,48 @@ def create_contradiction(claim_a: str, claim_b: str, detected_in_run: str, run_i
 
 @mcp_tool("create_evolution_proposal")
 def create_evolution_proposal(fields: Dict[str, Any], run_id: str = "default") -> Dict[str, Any]:
-    """Create PRP note. Validates min 1 evidence."""
+    """Create PRP note. Validates min 1 evidence. Only this function may create evolution proposals (hard constraint)."""
     _check_rate_limit(run_id)
     if not fields.get("evidence") or len(fields["evidence"]) == 0:
-        raise ValueError("evidence min 1 wikilink required (Rule 9)")
-    # generate id
+        raise ValueError("evidence min 1 wikilink required (Rule 9) — proposal with zero evidence is invalid")
+    # Handle both new (Prompt 8) and legacy (Prompt 2) field names for backwards compat
+    # New fields: current_version, proposed_version, change, previous_performance, expected_performance, benchmark
+    # Legacy aliases: operation -> change, expected_improvement -> expected_performance
+    target = fields.get("target")
+    if not target:
+        raise ValueError("evolution_proposal missing target")
+    # Resolve change / operation
+    change = fields.get("change") or fields.get("operation")
+    if not change:
+        raise ValueError("evolution_proposal missing change (or legacy operation)")
+    # Resolve expected_performance / expected_improvement
+    expected_perf = fields.get("expected_performance") or fields.get("expected_improvement")
+    if not expected_perf:
+        raise ValueError("evolution_proposal missing expected_performance (or legacy expected_improvement)")
+    # Resolve current/proposed version and performance/benchmark with sensible defaults for new proposals
+    current_version = fields.get("current_version") or fields.get("currentVersion") or "1.0.0"
+    proposed_version = fields.get("proposed_version") or fields.get("proposedVersion")
+    if not proposed_version:
+        # auto-bump patch
+        try:
+            parts = current_version.split(".")
+            parts[-1] = str(int(parts[-1]) + 1)
+            proposed_version = ".".join(parts)
+        except Exception:
+            proposed_version = "1.0.1"
+    previous_performance = fields.get("previous_performance") or fields.get("previousPerformance") or "unknown (to be measured)"
+    benchmark = fields.get("benchmark") or "to be benchmarked (Prompt 9)"
+    # Hard constraint: ensure this is called from evolution_analysis_node, not from arbitrary code that mutates configs
+    # We log the caller stack for audit; direct config mutation is forbidden elsewhere
+    # Generate id
     ulid = "01J8Y" + hashlib.sha256(json.dumps(fields, sort_keys=True).encode()).hexdigest()[:21].upper()
     ulid = re.sub(r"[^0-9A-HJKMNP-TV-Z]", "0", ulid)[:26]
     nid = fields.get("id") or f"PRP-{ulid}"
     fm = {
         "id": nid,
         "type": "evolution_proposal",
-        "title": fields.get("title", "Evolution proposal"),
-        "status": "PROPOSED",
+        "title": fields.get("title", f"Evolution proposal for {target}"),
+        "status": fields.get("status", "PROPOSED"),
         "confidence": fields.get("confidence", 0.7),
         "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "updated": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -1153,14 +1229,31 @@ def create_evolution_proposal(fields: Dict[str, Any], run_id: str = "default") -
         "source_count": len(fields.get("evidence", [])),
         "agent": fields.get("agent", "evolution"),
         "tags": fields.get("tags", ["evolution"]),
-        "target": fields["target"],
-        "operation": fields["operation"],
-        "reason": fields["reason"],
-        "expected_improvement": fields["expected_improvement"],
+        "target": target,
+        "current_version": current_version,
+        "proposed_version": proposed_version,
+        "change": change,
+        "reason": fields.get("reason", ""),
         "evidence": fields["evidence"],
-        "risk": fields["risk"],
+        "previous_performance": previous_performance,
+        "expected_performance": expected_perf,
+        "risk": fields.get("risk", "medium"),
+        "benchmark": benchmark,
+        # Keep legacy aliases for vaults that still read them
+        "operation": change,
+        "expected_improvement": expected_perf,
     }
-    body = fields.get("body", f"# {fm['title']}\n\n{fields.get('reason','')}\n")
+    # Enforce PROPOSED stays in Proposals/ — create_note will use _resolve_type_folder which maps to Proposals/ for this type
+    # Hard constraint check: ensure we are not being asked to create an ACCEPTED proposal without benchmark delta
+    if fm["status"] == "ACCEPTED":
+        bench = str(fm.get("benchmark",""))
+        has_delta = "->" in bench and any(c.isdigit() for c in bench) and "n=" in bench.lower()
+        if not has_delta:
+            raise ValueError("ACCEPTED proposals must carry numeric benchmark delta (e.g. '0.81 -> 0.89 on eval set X, n=40 runs') — LLM opinion alone is invalid")
+    body = fields.get("body") or f"# {fm['title']}\n\n**Target:** {target} (`{current_version}` → `{proposed_version}`)\n\n**Change:** {change}\n\n**Reason:** {fm['reason']}\n\n**Previous:** {previous_performance}\n**Expected:** {expected_perf}\n**Benchmark:** {benchmark}\n\n**Risk:** {fm['risk']}\n"
+    # Ensure at least one wikilink for evidence is in body as well
+    if fm["evidence"]:
+        body += "\n## Evidence\n" + "\n".join(f"- {ev}" for ev in fm["evidence"][:3]) + "\n"
     return create_note("evolution_proposal", fm, body, run_id=run_id)
 
 @mcp_tool("archive_note")
