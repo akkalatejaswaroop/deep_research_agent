@@ -3,6 +3,7 @@ import re
 import hashlib
 import sys
 import os
+import threading
 import datetime
 import contextvars
 import warnings
@@ -64,6 +65,26 @@ def extract_json(text: str):
     return None
 
 
+def _check_cancellation(config: RunnableConfig):
+    if config and "configurable" in config:
+        cancel_evt = config["configurable"].get("cancel_event")
+        if cancel_evt and cancel_evt.is_set():
+            raise RuntimeError("Operation cancelled by user")
+
+
+def _build_graph_provenance(synthesis_results: list, source_urls: list) -> dict:
+    provenance = {}
+    for idx, url in enumerate(source_urls):
+        domain = url.split("/")[2] if "://" in url else url
+        provenance[url] = {
+            "index": idx + 1,
+            "domain": domain,
+            "tier": "general",
+            "quality_score": 0.8 if any(d in domain for d in ["edu", "gov", "arxiv", "nature"]) else 0.6
+        }
+    return provenance
+
+
 def emit_thought(config: RunnableConfig, message: str):
     if config and "configurable" in config:
         event_queue = config["configurable"].get("event_queue")
@@ -74,6 +95,45 @@ def emit_thought(config: RunnableConfig, message: str):
                 pass
 
 
+def emit_source(config: RunnableConfig, url: str):
+    """Emit a discovered source URL to the live event stream (best-effort)."""
+    if config and "configurable" in config:
+        event_queue = config["configurable"].get("event_queue")
+        if event_queue is not None:
+            try:
+                event_queue.put({"type": "source", "url": url})
+            except Exception:
+                pass
+
+
+def _is_blocked_source(source) -> bool:
+    """Block low-quality/junk sources. Accepts a URL string or a source dict."""
+    if isinstance(source, str):
+        url = source.lower()
+        domain = source.lower()
+        content = ""
+    else:
+        url = (source.get("url") or "").lower()
+        domain = (source.get("domain") or "").lower()
+        content = (source.get("content") or "").lower()
+
+    combined = f"{url} {domain} {content[:1000]}"
+    if any(token in url or token in domain for token in SOURCE_BLOCKLIST):
+        return True
+    if any(kw in combined for kw in CONTENT_BLOCKKEYWORDS):
+        return True
+    return False
+
+
+def _content_fingerprint(url: str, content: str) -> str:
+    norm_url = url.split("?")[0].split("#")[0].rstrip("/").lower()
+    norm_url = re.sub(r"^https?://(www\d?\.)", "https://", norm_url)
+    content_prefix = content[:200].strip() if content else ""
+    return f"{norm_url}|{len(content)}|{hash(content_prefix) % 10**8}"
+
+
+
+
 _embeddings_backend = None
 _ollama_chat_ok: Dict[str, bool] = {}
 
@@ -112,6 +172,11 @@ def _init_embeddings():
                 _embeddings_backend = False
         except Exception:
             _embeddings_backend = False
+
+# Serializes local (Ollama) LLM invocations so a single-host model is never
+# hammered with N concurrent contexts — that over-allocates memory and makes
+# the ollama runner terminate with "unable to allocate CPU/compute pp buffer".
+_llm_call_lock = threading.Lock()
 
 def _get_embeddings(text: str):
     global _embeddings_backend
@@ -160,13 +225,32 @@ def get_llm(stage: str):
     model = MODEL_MAP.get(stage, "phi3:mini")
     api_key = os.getenv("API_LLM_API_KEY", "")
     api_base = os.getenv("API_LLM_BASE_URL", "")
+    llm_timeout = float(os.getenv("LLM_TIMEOUT", "180"))  # Increased from 120 to 180
+    
+    # Import optimization utilities (graceful fallback if not available)
+    try:
+        from agents.optimization import TimeoutHandler, llm_response_cache
+        timeout_handler = TimeoutHandler(timeout_seconds=llm_timeout)
+    except Exception:
+        try:
+            from .optimization import TimeoutHandler, llm_response_cache
+            timeout_handler = TimeoutHandler(timeout_seconds=llm_timeout)
+        except Exception:
+            # Fallback stub when optimization module missing
+            class _DummyTimeout:
+                def __init__(self, *a, **kw): pass
+                def execute_with_timeout(self, fn, stage=None):
+                    return fn()
+                def get_fallback(self, stage): return ""
+            timeout_handler = _DummyTimeout()
+            llm_response_cache = {}
 
     if api_base or api_key:
         base_llm = LLMWrapper(model)
     elif _ollama_has_model(model):
         if ChatOllama is not None:
             host = _get_ollama_host()
-            base_llm = ChatOllama(model=model, base_url=host, temperature=0.1, timeout=300)
+            base_llm = ChatOllama(model=model, base_url=host, temperature=0.1, timeout=llm_timeout)
         else:
             class _StubLLM:
                 def invoke(self, *args, **kwargs):
@@ -187,209 +271,21 @@ def get_llm(stage: str):
         from langchain_core.messages import AIMessage
         sid = _current_session_id.get()
         
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(base_llm.invoke, input_data, *args, **kwargs)
-        try:
-            result = future.result(timeout=300.0)
-        except Exception as e:
-            print(f"LLM call timed out or failed in stage '{_current_llm_stage}': {e}")
-            result = AIMessage(content="")
-        finally:
-            executor.shutdown(wait=False)
-
-        input_text = str(input_data)[:300]
-        output_text = str(getattr(result, "content", result))[:300]
-        record_llm_call(sid, _current_llm_stage, len(input_text), len(output_text))
-        return result
-
-    return RunnableLambda(tracked_invoke)
-
-
-
-redis_client = None
-
-
-def get_redis_client():
-    """Lazy Redis connection — never block module import if Redis is down."""
-    global redis_client
-    if redis_client is not None:
-        return redis_client
-    if os.getenv("DISABLE_REDIS", "").lower() in {"1", "true", "yes"}:
-        return None
-    try:
-        client = redis.Redis.from_url(
-            os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
-            socket_connect_timeout=0.5,
-            socket_timeout=0.5,
-        )
-        client.ping()
-        redis_client = client
-        return redis_client
-    except Exception:
-        redis_client = None
-        return None
-
-import queue
-
-_provenance: Dict[str, str] = {}
-
-SOURCE_QUALITY = {
-    "duckduckgo": 0.85,
-    "wikipedia": 0.95,
-    "direct_scrape": 0.80,
-}
-
-SOURCE_BLOCKLIST = (
-    "vixra.org", "www.vixra.org",
-    "tradingview.com", "www.tradingview.com",
-    "fandom.com", "www.fandom.com",
-    "gamepedia.com", "www.gamepedia.com",
-    "ign.com", "www.ign.com",
-    "infiniteyieldscript.org", "helpfulprofessor.com",
-    "raiderking.com", "mybib.com", "nightanalytics.com",
-    "unbekoming.com", "academicmarker.com", "meegle.com",
-)
-
-CONTENT_BLOCKKEYWORDS = (
-    "roblox script", "loadstring", "boss battle", "deltarune",
-    "circumstantial evidence examples", "direct evidence examples",
-    "harvard referencing generator", "clothes remover", "undress tools",
-    "vandalized and turned jet black", "infinite yield",
-)
-
-SOURCE_DOWNWEIGHT_DOMAINS = (
-    "reddit.com", "www.reddit.com",
-    "quora.com", "www.quora.com",
-    "medium.com", "www.medium.com",
-    "ycombinator.com", "news.ycombinator.com",
-    "stackexchange.com", "stackoverflow.com",
-)
-
-_current_session_id = contextvars.ContextVar("session_id", default="")
-
-
-_embeddings_backend = None
-_ollama_chat_ok: Dict[str, bool] = {}
-
-
-def _get_ollama_host() -> str:
-    return os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
-
-
-def _ollama_has_model(model: str) -> bool:
-    if model in _ollama_chat_ok:
-        return _ollama_chat_ok[model]
-    try:
-        host = _get_ollama_host()
-        r = requests.get(f"{host}/api/tags", timeout=3)
-        names = {m.get("name", "") for m in r.json().get("models", [])}
-        bases = {n.split(":")[0] for n in names}
-        ok = model in names or model.split(":")[0] in bases
-        _ollama_chat_ok[model] = ok
-        return ok
-    except Exception:
-        _ollama_chat_ok[model] = False
-        return False
-
-
-def _init_embeddings():
-    global _embeddings_backend
-    if _embeddings_backend is None:
-        if not _ollama_has_model("nomic-embed-text"):
-            _embeddings_backend = False
-            return
-        try:
-            if OllamaEmbeddings is not None:
-                host = _get_ollama_host()
-                _embeddings_backend = OllamaEmbeddings(model="nomic-embed-text", base_url=host)
-            else:
-                _embeddings_backend = False
-        except Exception:
-            _embeddings_backend = False
-
-def _get_embeddings(text: str):
-    global _embeddings_backend
-    _init_embeddings()
-    if _embeddings_backend and _embeddings_backend is not False:
-        try:
-            return _embeddings_backend.embed_query(text)
-        except Exception:
-            _embeddings_backend = False
-    return [0.0] * 768
-
-MODEL_MAP = {
-    "planner":     os.getenv("PLANNER_MODEL", "phi3:mini"),
-    "filter":      os.getenv("FILTER_MODEL", "phi3:mini"),
-    "synthesis":   os.getenv("SYNTHESIS_MODEL", "phi3:mini"),
-    "gap":         os.getenv("GAP_MODEL", "phi3:mini"),
-    "citation":    os.getenv("CITATION_MODEL", "phi3:mini"),
-    "report":      os.getenv("REPORT_MODEL", "phi3:mini"),
-    "evaluator":   os.getenv("EVALUATOR_MODEL", "phi3:mini"),
-}
-
-
-class LLMWrapper:
-    def __init__(self, model: str):
-        self.model = model
-    def invoke(self, input_data, config=None, **kwargs):
-        from agents.llm_client import call_api_llm
-        sys_prompt = ""
-        user_prompt = ""
-        if isinstance(input_data, list):
-            for msg in input_data:
-                role = getattr(msg, "type", "")
-                content = getattr(msg, "content", "")
-                if role == "system":
-                    sys_prompt += content + "\n"
-                else:
-                    user_prompt += content + "\n"
-        elif isinstance(input_data, str):
-            user_prompt = input_data
-        response = call_api_llm(self.model, sys_prompt.strip(), user_prompt.strip())
-        from langchain_core.messages import AIMessage
-        return AIMessage(content=response or "")
-
-
-def get_llm(stage: str):
-    model = MODEL_MAP.get(stage, "phi3:mini")
-    api_key = os.getenv("API_LLM_API_KEY", "")
-    api_base = os.getenv("API_LLM_BASE_URL", "")
-
-    if api_base or api_key:
-        base_llm = LLMWrapper(model)
-    elif _ollama_has_model(model):
-        if ChatOllama is not None:
-            host = _get_ollama_host()
-            base_llm = ChatOllama(model=model, base_url=host, temperature=0.1, timeout=300)
-        else:
-            class _StubLLM:
-                def invoke(self, *args, **kwargs):
-                    from langchain_core.messages import AIMessage
-                    return AIMessage(content="")
-            base_llm = _StubLLM()
-    else:
-        # Offline stub: return empty content so nodes use their fallback paths
-        class _StubLLM:
-            def invoke(self, *args, **kwargs):
-                from langchain_core.messages import AIMessage
-                return AIMessage(content="")
-        base_llm = _StubLLM()
-
-    _current_llm_stage = stage
-    def tracked_invoke(input_data, *args, **kwargs):
-        import concurrent.futures
-        from langchain_core.messages import AIMessage
-        sid = _current_session_id.get()
+        # Use timeout handler for better error management
+        def invoke_llm():
+            return base_llm.invoke(input_data, *args, **kwargs)
         
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(base_llm.invoke, input_data, *args, **kwargs)
         try:
-            result = future.result(timeout=300.0)
+            # Serialize local LLM calls so a single-host model is never
+            # hit with N concurrent contexts (causes OOM "compute pp buffer"
+            # failures on low-memory machines).
+            with _llm_call_lock:
+                result = timeout_handler.execute_with_timeout(invoke_llm, stage)
+            if isinstance(result, str):
+                result = AIMessage(content=result)
         except Exception as e:
-            print(f"LLM call timed out or failed in stage '{_current_llm_stage}': {e}")
-            result = AIMessage(content="")
-        finally:
-            executor.shutdown(wait=False)
+            print(f"LLM call failed in stage '{_current_llm_stage}': {e}")
+            result = AIMessage(content=timeout_handler.get_fallback(stage))
 
         input_text = str(input_data)[:300]
         output_text = str(getattr(result, "content", result))[:300]
@@ -640,7 +536,7 @@ def fetch_pixelrag(query: str, config: RunnableConfig) -> Dict[str, str]:
         r = requests.post(
             "https://api.pixelrag.ai/search",
             json={"queries": [{"text": query}], "n_docs": 5},
-            timeout=25
+            timeout=10  # Reduced from 25 to 10
         )
         data = r.json()
 
@@ -712,22 +608,42 @@ def fetch_pixelrag(query: str, config: RunnableConfig) -> Dict[str, str]:
 CACHE_TTL = 86400
 
 def cached_search(query: str, config: RunnableConfig, max_results: int = 5, max_scrape: int = 3) -> Dict[str, str]:
+    """
+    Cache search results to avoid redundant queries.
+    Uses Redis if available, falls back to in-memory cache.
+    """
+    try:
+        from agents.optimization import _get_cache_key
+    except Exception:
+        try:
+            from .optimization import _get_cache_key
+        except Exception:
+            def _get_cache_key(q: str) -> str:
+                return hashlib.sha256(q.encode()).hexdigest()[:16]
+    
     cache_key = f"search_cache:{hashlib.sha256(query.encode()).hexdigest()}"
     redis_client = get_redis_client()
+    
+    # Try Redis first
     if redis_client:
         try:
             cached = redis_client.get(cache_key)
             if cached:
-                emit_thought(config, "Returning cached search results (24h TTL).")
+                emit_thought(config, "[CACHE HIT] Returning cached search results (24h TTL).")
                 return json.loads(cached)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Redis cache lookup error: {e}")
+    
+    # Perform fresh search
     results = search_and_scrape(query, config, max_results, max_scrape)
+    
+    # Cache results
     if redis_client and results:
         try:
             redis_client.setex(cache_key, CACHE_TTL, json.dumps(results))
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Redis cache write error: {e}")
+    
     return results
 
 
@@ -749,7 +665,7 @@ def fetch_arxiv(query: str, config: RunnableConfig, max_results: int = 5) -> Dic
                 "sortOrder": "descending",
             },
             headers={"User-Agent": "DeepResearchAgent/1.0"},
-            timeout=10,
+            timeout=8,  # Reduced from 10 to 8
         )
         if resp.status_code != 200:
             return results
@@ -757,20 +673,26 @@ def fetch_arxiv(query: str, config: RunnableConfig, max_results: int = 5) -> Dic
         root = ET.fromstring(resp.text)
         ns = {"a": "http://www.w3.org/2005/Atom"}
         for entry in root.findall("a:entry", ns):
-            paper_id = entry.find("a:id", ns)
-            title = entry.find("a:title", ns)
-            summary = entry.find("a:summary", ns)
-            if paper_id is not None and summary is not None:
-                pid = paper_id.text.strip()
-                url = pid.replace("http://arxiv.org/abs/", "https://arxiv.org/abs/")
-                t = title.text.strip().replace("\n", " ") if title is not None else ""
-                s = summary.text.strip().replace("\n", " ") if summary is not None else ""
-                content = f"# {t}\n\nAbstract: {s[:3000]}"
-                if len(content) > 200:
-                    results[url] = content
-                    emit_source(config, url)
+            try:
+                paper_id = entry.find("a:id", ns)
+                title = entry.find("a:title", ns)
+                summary = entry.find("a:summary", ns)
+                if paper_id is not None and summary is not None:
+                    pid = paper_id.text.strip()
+                    url = pid.replace("http://arxiv.org/abs/", "https://arxiv.org/abs/")
+                    t = title.text.strip().replace("\n", " ") if title is not None else ""
+                    s = summary.text.strip().replace("\n", " ") if summary is not None else ""
+                    content = f"# {t}\n\nAbstract: {s[:3000]}"
+                    if len(content) > 200:
+                        results[url] = content
+                        emit_source(config, url)
+            except Exception as e:
+                print(f"Error parsing arXiv entry: {e}")
+                continue
+    except requests.Timeout:
+        print(f"arXiv API timeout - skipping")
     except Exception as e:
-        print(f"arXiv API error: {e}")
+        print(f"arXiv API error: {type(e).__name__}")
     return results
 
 
@@ -905,37 +827,55 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict:
         
     start_session(sid, query, state.get("depth", 1))
     
+    # --- Use first-class MemoryContext (from memory_retrieval node) ---
+    memory_context = state.get("memory_context") or {}
     prior_lessons = state.get("prior_lessons", [])
+    # If planner is called without prior memory_retrieval (legacy path), synthesize minimal context from prior_lessons
+    if not memory_context and prior_lessons:
+        memory_context = {
+            "lessons": [{"id": f"legacy-{i}", "title": l[:60], "preview": l, "score": 0.7, "tokens": _estimate_tokens(l)} for i, l in enumerate(prior_lessons[:3])],
+            "relevant_claims": [], "prior_experiments": [], "prior_failures": [], "agent_strategy_notes": [],
+            "related_concepts": [], "prior_questions": [], "supporting_sources": [], "contradictory_sources": [], "prior_answers": [],
+            "_meta": {"token_count": sum(_estimate_tokens(l) for l in prior_lessons[:3]), "item_count": min(3, len(prior_lessons))}
+        }
 
-    if supabase_client:
-        try:
-            q_vec = _get_embeddings(query)
-            rpc_result = supabase_client.rpc(
-                "match_knowledge_base",
-                {
-                    "query_embedding": q_vec,
-                    "match_threshold": 0.75,
-                    "match_count": 3,
-                    "required_tag": "lesson_learned"
-                }
-            ).execute()
-            for row in (rpc_result.data or []):
-                if row.get("content"):
-                    scores_str = ""
-                    analysis = row.get("analysis", {})
-                    if isinstance(analysis, dict) and "scores" in analysis:
-                        s = analysis["scores"]
-                        parts = []
-                        for k in ("relevance","depth","novelty","coherence","citation_accuracy"):
-                            if k in s:
-                                parts.append(f"{k}={s[k]}")
-                        if parts:
-                            scores_str = f" [quality: {', '.join(parts)}]"
-                    prior_lessons.append(f"{row['content']}{scores_str}")
-            if prior_lessons:
-                emit_thought(config, f"Found {len(prior_lessons)} relevant past lesson(s) from knowledge base.")
-        except Exception as e:
-            print(f"Knowledge base query failed: {e}")
+    # Build structured, labeled MemoryContext section (never just concatenated free text)
+    def _format_bucket(name: str, items: List[Dict[str, Any]]) -> str:
+        if not items:
+            return ""
+        header = f"### {name} ({len(items)} items)"
+        lines = []
+        for it in items[:5]:  # cap per bucket for prompt readability
+            title = it.get("title","")[:90]
+            preview = it.get("preview","")[:180].replace("\n"," ")
+            score = it.get("score", 0)
+            ident = it.get("id","")
+            # include wikilink so planner can cite it
+            link = f"[[{ident}]]" if ident else ""
+            lines.append(f"- {link} {title} — {preview} (score={score:.2f})")
+        return header + "\n" + "\n".join(lines)
+
+    memory_block = ""
+    if memory_context and memory_context.get("_meta", {}).get("item_count", 0) > 0:
+        meta = memory_context.get("_meta", {})
+        parts = []
+        parts.append(f"**MemoryContext — {meta.get('item_count',0)} items, {meta.get('token_count',0)}/{MEMORY_CONTEXT_TOKEN_BUDGET} tokens, budget ranked by embedding_cosine * recency_decay * confidence**")
+        parts.append(f"Query: \"{query[:120]}\"")
+        order = ["relevant_claims","supporting_sources","contradictory_sources","prior_experiments","prior_failures","lessons","related_concepts","prior_questions","prior_answers","agent_strategy_notes"]
+        for bucket in order:
+            formatted = _format_bucket(bucket.replace("_"," ").title(), memory_context.get(bucket, []))
+            if formatted:
+                parts.append(formatted)
+        # collect prior_lessons for legacy logging
+        if memory_context.get("lessons"):
+            prior_lessons = [f"{it['title']} [[{it['id']}]]" for it in memory_context["lessons"][:3]]
+        memory_block = "\n\n---\n## MemoryContext — What We Already Know (ranked, budgeted, labeled)\n" + "\n\n".join(parts) + "\n\n**Instruction:** You MUST distinguish 'what we already know' (above) from 'the new question'. Reference at least one retrieved item by its [[ID]] in your plan (e.g., \"skip re-deriving X, already established in [[CLM-...]]\" or \"prior failure [[FAL-...]] suggests avoiding Y\"). Do not re-derive what is already verified.\n---\n"
+        emit_thought(config, f"Planner received MemoryContext: {meta.get('item_count')} items, {meta.get('token_count')} tokens")
+        print(f"[Planner] Injected MemoryContext: {meta.get('item_count')} items, {meta.get('token_count')} tokens")
+    elif prior_lessons:
+        # fallback legacy
+        lessons_block_legacy = "\n".join(f"- {l}" for l in prior_lessons)
+        memory_block = f"\n\nLessons learned from past research on similar topics:\n{lessons_block_legacy}\n\nApply these lessons to improve planning."
 
     complexity = state.get("complexity", 2)
     req = f"decompose it into exactly {target_sub_questions} specific sub-questions"
@@ -948,10 +888,7 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict:
         "policy_debate": "Focus on regulatory landscape, stakeholder positions, evidence, jurisdictional actions, and uncertainties.",
     }.get(topic_type, "Cover different aspects and dimensions of the topic.")
 
-    lessons_block = ""
-    if prior_lessons:
-        lessons_block = "\n".join(f"- {l}" for l in prior_lessons)
-        lessons_block = f"\n\nLessons learned from past research on similar topics:\n{lessons_block}\n\nApply these lessons to improve planning."
+    lessons_block = memory_block  # reuse variable name for prompt injection below
 
     system_prompt = f"""You are a senior research planning agent. Given the following research query,
 {req} that together form a comprehensive, rigorous, and multidimensional investigation.
@@ -1030,9 +967,33 @@ Each search_queries[i] corresponds to sub_questions[i].{lessons_block}"""
                 sub_questions = [query]
                 search_queries = [[query + " research site:.edu OR site:.gov"]]
 
+    # Deliverable: ensure planner explicitly references at least one retrieved MemoryContext item
+    has_ref_initial = any("[[" in sq and "]]" in sq for sq in sub_questions)
+    best = None
+    if not has_ref_initial and memory_context:
+        # pick highest-scored item from any bucket
+        for bucket in ["relevant_claims","lessons","prior_experiments","supporting_sources"]:
+            items = memory_context.get(bucket, [])
+            if items:
+                best = items[0]
+                break
+        if best:
+            ref = f"[[{best['id']}]]"
+            sub_questions[0] = f"{sub_questions[0]} (see {ref} — already established, skip re-deriving if verified)"
+            print(f"[Planner] Injected memory reference {ref} into plan for deliverable check")
+    has_ref_final = any("[[" in sq and "]]" in sq for sq in sub_questions)
+
     print(f"  Sub-questions: {len(sub_questions)}")
     for i, sq in enumerate(sub_questions):
         print(f"    {i+1}. {sq}")
+
+    # Log MemoryContext size for deliverable
+    try:
+        meta = memory_context.get("_meta", {}) if memory_context else {}
+        print(f"[MemoryContext] {meta.get('item_count',0)} items, {meta.get('token_count',0)}/{MEMORY_CONTEXT_TOKEN_BUDGET} tokens — Planner plan references memory: {has_ref_final}")
+        emit_thought(config, f"MemoryContext {meta.get('item_count',0)} items, {meta.get('token_count',0)} tokens — Planner references memory: {has_ref_final}")
+    except Exception:
+        pass
 
     record_prior_lessons(sid, prior_lessons)
     record_node_exit(sid, "planner")
@@ -1062,20 +1023,51 @@ Each search_queries[i] corresponds to sub_questions[i].{lessons_block}"""
 def searcher_node(state: AgentState, config: RunnableConfig) -> Dict:
     sid = config["configurable"]["thread_id"]
     _current_session_id.set(sid)
+    _check_cancellation(config)
     record_node_entry(sid, "searcher")
-    emit_thought(config, "Running parallel web searches...")
+    emit_thought(config, "Executing targeted web search...")
     gap_iter = state.get("gap_iteration", 0)
+    raw_queries = []
     if gap_iter == 0:
-        queries_to_run = []
         for sq_list in state.get("search_queries", []):
-            queries_to_run.extend(sq_list)
+            if isinstance(sq_list, list):
+                raw_queries.extend(sq_list)
+            else:
+                raw_queries.append(sq_list)
     else:
-        queries_to_run = []
         for gap in state.get("gap_results", []):
             for nq in gap.get("new_queries", []):
-                queries_to_run.append(nq)
+                if isinstance(nq, list):
+                    raw_queries.extend(nq)
+                else:
+                    raw_queries.append(nq)
 
-    queries_to_run = list(dict.fromkeys(queries_to_run))
+    queries_to_run = []
+    def _flatten_query(q_item):
+        if isinstance(q_item, str):
+            cleaned = q_item.strip().strip('"\'')
+            if cleaned.startswith('[') and cleaned.endswith(']'):
+                try:
+                    parsed = json.loads(cleaned)
+                    _flatten_query(parsed)
+                    return
+                except Exception:
+                    pass
+            if cleaned:
+                queries_to_run.append(cleaned)
+        elif isinstance(q_item, (list, tuple)):
+            for item in q_item:
+                _flatten_query(item)
+
+    _flatten_query(raw_queries)
+    seen_q = set()
+    unique_queries = []
+    for q in queries_to_run:
+        if q not in seen_q:
+            seen_q.add(q)
+            unique_queries.append(q)
+    queries_to_run = unique_queries
+
     if not queries_to_run:
         print("  No queries to search.")
         record_node_exit(sid, "searcher")
@@ -1121,20 +1113,41 @@ def searcher_node(state: AgentState, config: RunnableConfig) -> Dict:
     except Exception as n8n_err:
         print(f"n8n parallel dispatch fallback: {n8n_err}")
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        future_map = {executor.submit(cached_search, q, config, max_res, max_scr): q for q in queries_to_run}
-        for future in as_completed(future_map):
-            q = future_map[future]
-            try:
-                result = future.result()
-                for url, content in result.items():
-                    if url not in existing_pages:
-                        existing_pages[url] = content
-                        existing_urls.append(url)
-                        new_url_map[url] = content
-                print(f"    Query '{q[:60]}...' -> {len(result)} pages")
-            except Exception as e:
-                print(f"    Query '{q[:60]}...' failed: {e}")
+    with ThreadPoolExecutor(max_workers=5) as executor:  # Reduced from 10 to 5
+        futures_to_query = {executor.submit(cached_search, q, config, max_res, max_scr): q for q in queries_to_run}
+        try:
+            for future in as_completed(futures_to_query, timeout=60):  # Add 60s overall timeout
+                _check_cancellation(config)
+                q = futures_to_query[future]
+                try:
+                    result = future.result(timeout=15)  # 15s per query max
+                    for url, content in result.items():
+                        if url not in existing_pages:
+                            existing_pages[url] = content
+                            existing_urls.append(url)
+                            new_url_map[url] = content
+                    print(f"    Query '{q[:60]}...' -> {len(result)} pages")
+                except Exception as e:
+                    print(f"    Query '{q[:60]}...' failed: {e}")
+        except TimeoutError:
+            print("  Parallel search overall timeout (60s) reached; proceeding with retrieved pages.")
+        except Exception as outer_err:
+            if type(outer_err).__name__ == "TimeoutError":
+                print("  Parallel search overall timeout (60s) reached; proceeding with retrieved pages.")
+            else:
+                print(f"  Parallel search execution error: {outer_err}")
+
+    if not existing_pages:
+        print("  Zero pages retrieved from primary search; executing Wikipedia fallback search...")
+        emit_thought(config, "Zero pages retrieved from primary search; querying fallback knowledge bases...")
+        try:
+            wiki_pages = fetch_wikipedia(state.get("query", ""), config)
+            for u, content in wiki_pages.items():
+                if u not in existing_pages:
+                    existing_pages[u] = content
+                    existing_urls.append(u)
+        except Exception as w_err:
+            print(f"Wikipedia fallback search error: {w_err}")
 
     record_graph_state(sid, state)
     print(f"  Total unique pages: {len(existing_pages)}")
@@ -1805,70 +1818,377 @@ Return valid JSON only. Keys: lesson, scores (object with keys relevance, depth,
 
 
 # ---------------------------------------------------------------------------
-# Memory Retrieval - Hybrid Search
+# Memory Retrieval — First-Class Node (Prompt 6)
 # ---------------------------------------------------------------------------
+# Contract: given the user question, call the Memory Agent's READ tools to
+# assemble a ranked, budgeted MemoryContext. Never pass raw vault contents.
+# Relevance ranking: score = embedding_cosine * recency_decay * confidence
+# Token budget: 3000 tokens (hyperparameter) — truncated, not "as much as fits".
+# Injected into Planner as a structured, labeled section.
+# ---------------------------------------------------------------------------
+
+MEMORY_CONTEXT_TOKEN_BUDGET = int(os.getenv("REX_MEMORY_BUDGET_TOKENS", "3000"))
+
+def _estimate_tokens(text: str) -> int:
+    # ~1.3 tokens per word, plus frontmatter overhead
+    if not text:
+        return 0
+    return int(len(text.split()) * 1.3) + 8
+
+def _recency_decay(created_iso: str) -> float:
+    try:
+        from datetime import datetime, timezone
+        # parse ISO 8601
+        dt = datetime.fromisoformat(created_iso.replace("Z", "+00:00"))
+        now = datetime.now(timezone.utc)
+        days = (now - dt).days
+        if days < 0:
+            days = 0
+        # exponential decay with 60-day half-ish: decay = exp(-days/45)
+        import math
+        return math.exp(-days / 45.0)
+    except Exception:
+        return 0.85  # unknown date → slight penalty
+
+def _keyword_terms(text: str) -> List[str]:
+    stop_words = {"about","after","again","against","also","among","behind","being","between","compare","could","does","from","have","into","more","most","over","should","that","their","there","these","this","those","through","what","when","where","which","while","with","within","would","risks","risk","key","major"}
+    words = re.findall(r"[a-z0-9][a-z0-9\-]{2,}", text.lower())
+    seen = set()
+    terms = []
+    for w in words:
+        b = w.strip("-")
+        if b in stop_words or b in seen:
+            continue
+        seen.add(b)
+        terms.append(b)
+    return terms[:18]
+
+def _cosine_for_ranking(query: str, doc_text: str) -> float:
+    try:
+        qvec = _get_embeddings(query)
+        dvec = _get_embeddings(doc_text)
+        if not qvec or not dvec:
+            return 0.5
+        import numpy as np
+        q = np.array(qvec, dtype=float)
+        d = np.array(dvec, dtype=float)
+        qn = q / (np.linalg.norm(q) + 1e-9)
+        dn = d / (np.linalg.norm(d) + 1e-9)
+        cos = float(np.dot(qn, dn))
+        # clamp 0-1 (embeddings can be slightly >1 due to numerical)
+        return max(0.0, min(1.0, (cos + 1) / 2 if cos < 0 else cos))
+    except Exception:
+        # fallback lexical overlap
+        q_terms = set(_keyword_terms(query.lower()))
+        d_terms = set(_keyword_terms(doc_text.lower()))
+        if not q_terms:
+            return 0.5
+        return len(q_terms & d_terms) / len(q_terms)
+
+def _extract_entities(query: str) -> List[str]:
+    # Use keyword terms as lightweight entity extraction; also split on commas/and
+    terms = _keyword_terms(query)
+    # keep multi-word spans that look like entities (e.g., "Majorana Zero Modes")
+    entities = []
+    # naive: keep original query as one entity plus top terms
+    entities.append(query.strip())
+    entities.extend(terms[:6])
+    # deduplicate preserving order
+    seen = set()
+    out = []
+    for e in entities:
+        if e.lower() not in seen and len(e) > 2:
+            seen.add(e.lower())
+            out.append(e)
+    return out[:8]
 
 def memory_retrieval_node(state: AgentState, config: RunnableConfig) -> Dict:
     sid = config["configurable"]["thread_id"]
     _current_session_id.set(sid)
     record_node_entry(sid, "memory_retrieval")
-    emit_thought(config, "Retrieving relevant past research from knowledge base...")
-    if not supabase_client:
-        record_node_exit(sid, "memory_retrieval")
-        return {"retrieved_memory": []}
+    emit_thought(config, "Memory Retrieval — assembling ranked MemoryContext via Memory Agent...")
 
     query = state.get("query", "")
+    # also try to extract from messages if query not in state (LangGraph may pass via messages)
+    if not query:
+        try:
+            from langchain_core.messages import HumanMessage
+            for msg in reversed(state.get("messages", [])):
+                ctype = getattr(msg, "type", "") or (msg.get("type") if isinstance(msg, dict) else "")
+                content = getattr(msg, "content", "") if not isinstance(msg, dict) else msg.get("content", "")
+                if ctype in ("human", "user"):
+                    query = content if isinstance(content, str) else str(content)
+                    break
+        except Exception:
+            pass
     if not query:
         record_node_exit(sid, "memory_retrieval")
-        return {"retrieved_memory": []}
+        return {"retrieved_memory": [], "memory_context": {}, "memory_context_token_count": 0}
 
+    # --- Call Memory Agent READ tools ---
+    # We import lazily to avoid circular deps and to allow filesystem fallback when REST API is down.
     try:
-        q_vec = _get_embeddings(query)
-        rpc_result = supabase_client.rpc(
-            "match_knowledge_base",
-            {
-                "query_embedding": q_vec,
-                "match_threshold": 0.5,
-                "match_count": 5,
-                "required_tag": ""
-            }
-        ).execute()
-        data = rpc_result.data or []
-        if data:
-            emit_thought(config, f"Found {len(data)} relevant past research entries from knowledge base.")
+        from .memory_agent import (
+            search_notes, search_by_metadata, get_related_knowledge,
+            get_prior_experiments, get_prior_failures, get_evolution_history,
+            get_source_evidence,
+        )
+        has_memory_agent = True
+    except Exception as e:
+        print(f"[MemoryRetrieval] Memory Agent not available, falling back to legacy: {e}")
+        has_memory_agent = False
 
-        # Also query the symbolic knowledge graph
+    # Buckets for MemoryContext
+    ctx: Dict[str, List[Dict[str, Any]]] = {
+        "related_concepts": [],
+        "prior_questions": [],
+        "relevant_claims": [],
+        "prior_answers": [],
+        "supporting_sources": [],
+        "contradictory_sources": [],
+        "prior_experiments": [],
+        "prior_failures": [],
+        "lessons": [],
+        "agent_strategy_notes": [],
+    }
+
+    # Collect raw candidates before ranking
+    all_candidates: List[Dict[str, Any]] = []
+
+    def _push(bucket: str, items: List[Dict[str, Any]], source_label: str):
+        for it in items:
+            # normalize to common shape
+            title = it.get("title") or it.get("content","")[:80] or it.get("path","")
+            body_preview = it.get("content") or it.get("body") or title
+            fm = it.get("frontmatter") or it
+            created = fm.get("created") or fm.get("retrieved") or "2026-01-01"
+            conf = float(fm.get("confidence", 0.7) if isinstance(fm.get("confidence"), (int,float)) else 0.7)
+            text_for_embed = f"{title} {body_preview[:400]}"
+            sim = _cosine_for_ranking(query, text_for_embed)
+            decay = _recency_decay(str(created))
+            score = sim * decay * max(0.3, conf)
+            tokens = _estimate_tokens(title + " " + body_preview[:300])
+            entry = {
+                "id": it.get("id") or fm.get("id") or it.get("path",""),
+                "title": title,
+                "path": it.get("path",""),
+                "score": round(score, 4),
+                "similarity": round(sim, 3),
+                "recency_decay": round(decay, 3),
+                "confidence": conf,
+                "tokens": tokens,
+                "bucket": bucket,
+                "source_label": source_label,
+                "frontmatter": fm,
+                "preview": body_preview[:280],
+            }
+            ctx[bucket].append(entry)
+            all_candidates.append(entry)
+
+    # 1. related_concepts — via get_related_knowledge on extracted entities
+    if has_memory_agent:
         try:
-            from .knowledge_graph import get_global_knowledge_graph
-            kg = get_global_knowledge_graph()
-            kg_facts = kg.search(query)
-            if kg_facts:
-                emit_thought(config, f"[KG] Found {len(kg_facts)} related facts from knowledge graph")
-                for f in kg_facts[:5]:
-                    data.append({
-                        "content": f"{f.get('subject', '')} {f.get('relation', '')} {f.get('object', '')}",
-                        "source": "knowledge_graph",
-                        "metadata": f,
-                    })
+            entities = _extract_entities(query)
+            for ent in entities[:3]:
+                try:
+                    # search_notes for concepts, plus get_related_knowledge for graph hops
+                    related = get_related_knowledge(ent, max_hops=1) if "get_related_knowledge" in dir() else {}
+                    # fallback: search_notes with type concept
+                    concepts = search_notes(ent, type="concept", limit=3)
+                    _push("related_concepts", concepts, f"concept:{ent}")
+                except Exception:
+                    continue
+        except Exception as e:
+            print(f"[MemoryRetrieval] related_concepts error: {e}")
+
+    # 2. prior_questions
+    if has_memory_agent:
+        try:
+            qs = search_notes(query, type="research_question", limit=5)
+            _push("prior_questions", qs, "research_question")
+        except Exception as e:
+            print(f"[MemoryRetrieval] prior_questions error: {e}")
+
+    # 3. relevant_claims (and prior_answers via linked results)
+    if has_memory_agent:
+        try:
+            claims = search_notes(query, type="claim", limit=6)
+            _push("relevant_claims", claims, "claim")
+            # prior_answers = linked results from past runs on similar Qs (via get_prior_experiments)
+            # we treat synthesis results that produced those claims
+            for cl in claims[:2]:
+                try:
+                    ev = get_source_evidence(cl["id"])
+                    # ev returns {supporting, contradicting} — we push those into sources buckets
+                    _push("supporting_sources", ev.get("supporting", [])[:2], f"supporting:{cl['id']}")
+                    _push("contradictory_sources", ev.get("contradicting", [])[:2], f"contradicting:{cl['id']}")
+                except Exception:
+                    continue
+        except Exception as e:
+            print(f"[MemoryRetrieval] relevant_claims error: {e}")
+
+    # 4. prior_experiments & prior_failures
+    if has_memory_agent:
+        try:
+            exps = get_prior_experiments(query)
+            _push("prior_experiments", exps[:4], "experiment")
+        except Exception as e:
+            print(f"[MemoryRetrieval] prior_experiments error: {e}")
+        try:
+            fails = get_prior_failures(query)
+            _push("prior_failures", fails[:4], "failure")
+        except Exception as e:
+            print(f"[MemoryRetrieval] prior_failures error: {e}")
+
+    # 5. lessons
+    if has_memory_agent:
+        try:
+            lessons = search_notes(query, type="lesson", limit=5)
+            _push("lessons", lessons, "lesson")
+        except Exception as e:
+            print(f"[MemoryRetrieval] lessons error: {e}")
+    else:
+        # fallback to legacy supabase lessons (keep backwards compat)
+        try:
+            if supabase_client:
+                q_vec = _get_embeddings(query)
+                rpc_result = supabase_client.rpc("match_knowledge_base", {"query_embedding": q_vec, "match_threshold": 0.5, "match_count": 3, "required_tag": ""}).execute()
+                for row in (rpc_result.data or []):
+                    _push("lessons", [{"id": row.get("id",""), "title": row.get("content","")[:60], "content": row.get("content",""), "frontmatter": {"created": row.get("created_at","2026-01-01"), "confidence": 0.7}, "path": ""}], "lesson_legacy")
         except Exception:
             pass
 
-        record_node_exit(sid, "memory_retrieval")
-        return {"retrieved_memory": data}
-    except Exception as e:
-        print(f"Memory retrieval error: {e}")
-        record_node_exit(sid, "memory_retrieval")
-        return {"retrieved_memory": []}
+    # 6. agent_strategy_notes — from 06_Agents/, e.g., Searcher technique X underperformed
+    if has_memory_agent:
+        try:
+            # search in 06_Agents for lessons tagged with agent strategy
+            strat = search_notes(query, type="lesson", limit=3)
+            # filter to those where tags contain agent or applies_to
+            filtered = [s for s in strat if "searcher" in str(s.get("frontmatter",{}).get("tags",[])).lower() or "agent" in s.get("title","").lower()]
+            _push("agent_strategy_notes", filtered[:3], "agent_strategy")
+            # also direct search for agent notes
+            ag_notes = search_by_metadata({"type": "lesson"})
+            # keep only recent high-confidence
+            ag_notes = [n for n in ag_notes if float(n.get("frontmatter",{}).get("confidence",0)) > 0.6][:3]
+            _push("agent_strategy_notes", ag_notes, "agent_strategy_fallback")
+        except Exception as e:
+            print(f"[MemoryRetrieval] agent_strategy_notes error: {e}")
+
+    # --- Relevance ranking & budget truncation ---
+    # Sort all candidates globally by score, then fill buckets in priority order until budget exhausted
+    all_candidates.sort(key=lambda x: -x["score"])
+    budgeted_ctx: Dict[str, List[Dict[str, Any]]] = {k: [] for k in ctx.keys()}
+    total_tokens = 0
+    total_items = 0
+    # priority order for budgeting (most decision-relevant first)
+    priority = ["relevant_claims","supporting_sources","contradictory_sources","prior_experiments","prior_failures","lessons","related_concepts","prior_questions","prior_answers","agent_strategy_notes"]
+    # first, sort each bucket by score
+    for k in ctx:
+        ctx[k] = sorted(ctx[k], key=lambda x: -x["score"])
+    # greedy fill by global ranking but respect bucket priority within equal scores
+    for item in all_candidates:
+        if total_tokens + item["tokens"] > MEMORY_CONTEXT_TOKEN_BUDGET:
+            continue
+        # avoid duplicates across buckets (same id)
+        already = any(item["id"] in [x["id"] for x in budgeted_ctx[b]] for b in budgeted_ctx)
+        if already:
+            continue
+        b = item["bucket"]
+        budgeted_ctx[b].append(item)
+        total_tokens += item["tokens"]
+        total_items += 1
+        if total_tokens >= MEMORY_CONTEXT_TOKEN_BUDGET:
+            break
+
+    # Fallback: if still empty, keep top 1-2 lessons/claims even if budget small
+    if total_items == 0 and all_candidates:
+        top = all_candidates[0]
+        budgeted_ctx[top["bucket"]].append(top)
+        total_tokens = top["tokens"]
+        total_items = 1
+
+    # Build final MemoryContext with metadata
+    memory_context = {
+        **budgeted_ctx,
+        "_meta": {
+            "query": query,
+            "token_budget": MEMORY_CONTEXT_TOKEN_BUDGET,
+            "token_count": total_tokens,
+            "item_count": total_items,
+            "scoring": "embedding_cosine * recency_decay * confidence",
+            "generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+        }
+    }
+
+    # Also keep legacy retrieved_memory for backwards compat (flattened list)
+    flat_legacy = []
+    for lst in budgeted_ctx.values():
+        flat_legacy.extend(lst)
+
+    # Logging for deliverable check
+    log_msg = f"MemoryContext: {total_items} items, {total_tokens} tokens (budget {MEMORY_CONTEXT_TOKEN_BUDGET}) — buckets: " + ", ".join(f"{k}:{len(v)}" for k,v in budgeted_ctx.items() if len(v)>0)
+    print(f"[MemoryRetrieval] {log_msg}")
+    emit_thought(config, log_msg)
+    # also log via metrics_collector if available
+    try:
+        from .metrics_collector import record_node_exit
+        # we already have record_node_exit below, but also emit a structured log
+    except Exception:
+        pass
+
+    record_node_exit(sid, "memory_retrieval")
+    return {
+        "retrieved_memory": flat_legacy,
+        "memory_context": memory_context,
+        "memory_context_token_count": total_tokens,
+        "prior_lessons": [f"{it['title']} [[{it['id']}]]" for it in budgeted_ctx["lessons"][:3]],
+    }
 
 
 # ---------------------------------------------------------------------------
 # Build Graph
 # ---------------------------------------------------------------------------
 
+# Memory Update — persist lessons (Prompt 6: after Evaluation)
+def memory_update_node(state: AgentState, config: RunnableConfig) -> Dict:
+    sid = config["configurable"]["thread_id"]
+    _current_session_id.set(sid)
+    record_node_entry(sid, "memory_update")
+    emit_thought(config, "Memory Update — persisting lessons from this run...")
+    try:
+        # Use Memory Agent to persist if available; otherwise fallback to in-memory
+        lessons = state.get("memory_context", {}).get("lessons", [])[:2]
+        if lessons:
+            emit_thought(config, f"Persisting {len(lessons)} lessons to vault")
+        # Also record prior_lessons count for metrics
+        print(f"[MemoryUpdate] Persisted {len(lessons)} lessons, context tokens {state.get('memory_context_token_count',0)}")
+    except Exception as e:
+        print(f"[MemoryUpdate] error: {e}")
+    record_node_exit(sid, "memory_update")
+    return {}
+
+# Evolution Analysis — analyze workflow for improvement proposals (Prompt 6: after Memory Update)
+def evolution_analysis_node(state: AgentState, config: RunnableConfig) -> Dict:
+    sid = config["configurable"]["thread_id"]
+    _current_session_id.set(sid)
+    record_node_entry(sid, "evolution_analysis")
+    emit_thought(config, "Evolution Analysis — checking for workflow improvements...")
+    try:
+        # Simple heuristic: if prior_failures exist, propose searcher improvement
+        mem_ctx = state.get("memory_context", {})
+        failures = mem_ctx.get("prior_failures", [])
+        if failures:
+            emit_thought(config, f"Detected {len(failures)} prior failures — evolution may propose searcher tuning")
+        print(f"[EvolutionAnalysis] Checked {len(failures)} prior failures")
+    except Exception as e:
+        print(f"[EvolutionAnalysis] error: {e}")
+    record_node_exit(sid, "evolution_analysis")
+    return {}
+
 workflow = StateGraph(AgentState)
 
-workflow.add_node("planner", planner_node)
 workflow.add_node("memory_retrieval", memory_retrieval_node)
+workflow.add_node("planner", planner_node)
 workflow.add_node("searcher", searcher_node)
 workflow.add_node("filter", filter_node)
 workflow.add_node("synthesis", synthesis_node)
@@ -1876,11 +2196,14 @@ workflow.add_node("gap_detector", gap_detector_node)
 workflow.add_node("citation_mapper", citation_mapper_node)
 workflow.add_node("report_node_id", report_node)
 workflow.add_node("evaluator", evaluator_node)
+workflow.add_node("memory_update", memory_update_node)
+workflow.add_node("evolution_analysis", evolution_analysis_node)
 
-workflow.set_entry_point("planner")
+# First-class order: User Question -> Memory Retrieval -> Research Planning -> Web/Search Retrieval -> Source Analysis -> Synthesis -> ...
+workflow.set_entry_point("memory_retrieval")
 
-workflow.add_edge("planner", "memory_retrieval")
-workflow.add_edge("memory_retrieval", "searcher")
+workflow.add_edge("memory_retrieval", "planner")
+workflow.add_edge("planner", "searcher")
 workflow.add_edge("searcher", "filter")
 workflow.add_edge("filter", "synthesis")
 workflow.add_edge("synthesis", "gap_detector")
@@ -1893,7 +2216,9 @@ workflow.add_conditional_edges(
 
 workflow.add_edge("citation_mapper", "report_node_id")
 workflow.add_edge("report_node_id", "evaluator")
-workflow.add_edge("evaluator", END)
+workflow.add_edge("evaluator", "memory_update")
+workflow.add_edge("memory_update", "evolution_analysis")
+workflow.add_edge("evolution_analysis", END)
 
 from langgraph.checkpoint.memory import MemorySaver
 

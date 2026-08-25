@@ -25,6 +25,9 @@ class AgentState(TypedDict):
     is_valid: bool
     prior_lessons: List[str]
     retrieved_memory: List[Dict[str, Any]]
+    # First-class MemoryContext (Prompt 6) — budgeted, ranked, structured
+    memory_context: Dict[str, Any]
+    memory_context_token_count: int
     structured_refs: Annotated[List[Dict[str, Any]], operator.add]
     metrics: Dict[str, Any]
     logs: Annotated[List[str], operator.add]
