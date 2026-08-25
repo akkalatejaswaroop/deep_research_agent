@@ -401,9 +401,11 @@ def _validate_frontmatter(fm: Dict[str, Any], is_update: bool = False, existing_
             if k not in fm:
                 errs.append(f"lesson missing {k}")
     if fm.get("type") == "research_run":
-        for k in ["query","sub_questions","report","citations","linked_notes","classification_table","token_counts"]:
+        for k in ["query","sub_questions","report","citations","linked_notes","classification_table","token_counts","result","agent_outcomes"]:
             if k not in fm:
                 errs.append(f"research_run missing {k}")
+        if "result" in fm and fm["result"] not in {"success","fail","partial"}:
+            errs.append("research_run result must be success|fail|partial")
     if fm.get("type") == "genome":
         for k in ["genome_sequence","gene_params","generation","parents","mutation_applied","fitness","benchmark_result"]:
             if k not in fm:
