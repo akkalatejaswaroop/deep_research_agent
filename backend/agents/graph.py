@@ -2596,6 +2596,24 @@ Rules:
         run_created_id = run_id
         emit_thought(config, f"Memory Update failed to create Run: {e}")
 
+    # --- Prompt 12: periodic Consolidation Agent pass (every N runs) ---
+    global _runs_since_consolidation
+    try:
+        _runs_since_consolidation += 1
+        from .memory_agent import CONSOLIDATION_EVERY_N_RUNS
+        if _runs_since_consolidation >= max(1, CONSOLIDATION_EVERY_N_RUNS):
+            _runs_since_consolidation = 0
+            try:
+                from .consolidation_agent import run_consolidation_pass
+                rep = run_consolidation_pass(run_id=f"consolidation-{sid}", dry_run=False)
+                print(f"[Consolidation] auto-pass: clusters={rep['clusters_found']} "
+                      f"consolidated={len(rep['consolidations'])} decay={rep['decay']}")
+                emit_thought(config, f"Consolidation pass ran: {len(rep['consolidations'])} cluster(s) folded upward")
+            except Exception as ce:
+                print(f"[Consolidation] auto-pass failed: {ce}")
+    except Exception:
+        pass
+
     record_node_exit(sid, "memory_update")
     return {"run_id": run_created_id, "classification_table": classification_table, "linked_notes": linked_ids}
 
@@ -2792,6 +2810,9 @@ def evolution_analysis_node(state: AgentState, config: RunnableConfig) -> Dict:
 
     record_node_exit(sid, "evolution_analysis")
     return {}
+
+# Prompt 12: research runs since the last automatic Consolidation Agent pass
+_runs_since_consolidation = 0
 
 workflow = StateGraph(AgentState)
 

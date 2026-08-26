@@ -35,6 +35,83 @@
     "basics deep learning": [
       8.0,
       8.0
+    ],
+    "are key the what": [
+      8.1
+    ],
+    "battery commercialization electrolyte solid-state": [
+      8.5
+    ],
+    "are best the what": [
+      8.3
+    ],
+    "are avanced in what": [
+      8.3
+    ],
+    "computing? is quantum what": [
+      5.9,
+      5.4,
+      5.9,
+      5.4,
+      5.9,
+      5.8,
+      5.9,
+      5.4,
+      5.9,
+      5.4,
+      5.8,
+      5.4,
+      5.9,
+      5.4,
+      6.8
+    ],
+    "ai safety": [
+      6.0,
+      6.0,
+      6.0,
+      6.0,
+      6.0,
+      6.0
+    ],
+    "search space state": [
+      6.0,
+      6.0,
+      6.0,
+      6.0,
+      6.0,
+      6.0
+    ],
+    "agentic ai in quantum": [
+      8.5,
+      7.8
+    ],
+    "cryptography impact of post-quantum": [
+      8.3,
+      8.3,
+      8.2,
+      8.3,
+      8.1,
+      8.2,
+      8.2
+    ],
+    "cancel query test": [
+      8.4
+    ],
+    "brand man new spider": [
+      8.3
+    ],
+    "2026 market stock trends": [
+      8.2
+    ],
+    "artificial intelligence? is what": [
+      8.0
+    ],
+    "ai neuro-symbolic": [
+      7.7,
+      8.0
+    ],
+    "cryptography cybersecurity in quantum": [
+      8.4
     ]
   },
   "dimensions": {
@@ -57,18 +134,48 @@
     },
     "ai safety": {
       "relevance": [
+        10.0,
+        10.0,
+        10.0,
+        10.0,
+        10.0,
+        10.0,
         10.0
       ],
       "depth": [
+        2.8,
+        2.8,
+        2.8,
+        2.8,
+        2.8,
+        2.8,
         2.8
       ],
       "novelty": [
+        4.9,
+        4.9,
+        4.9,
+        4.9,
+        4.9,
+        4.9,
         4.9
       ],
       "coherence": [
+        7.8,
+        7.8,
+        7.8,
+        7.8,
+        7.8,
+        7.8,
         7.8
       ],
       "citation_accuracy": [
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5,
         2.5
       ]
     },
@@ -96,19 +203,24 @@
     },
     "test": {
       "relevance": [
+        10.0,
         10.0
       ],
       "depth": [
-        4.7
+        4.7,
+        8.8
       ],
       "novelty": [
-        6.2
+        6.2,
+        8.6
       ],
       "coherence": [
+        8.3,
         8.3
       ],
       "citation_accuracy": [
-        8.4
+        8.4,
+        8.8
       ]
     },
     "query test": {
@@ -153,6 +265,432 @@
         8.4,
         8.4,
         2.5
+      ]
+    },
+    "are key the what": {
+      "relevance": [
+        10.0
+      ],
+      "depth": [
+        6.0
+      ],
+      "novelty": [
+        6.8
+      ],
+      "coherence": [
+        8.4
+      ],
+      "citation_accuracy": [
+        8.8
+      ]
+    },
+    "battery commercialization electrolyte solid-state": {
+      "relevance": [
+        10.0,
+        10.0
+      ],
+      "depth": [
+        7.3,
+        6.2
+      ],
+      "novelty": [
+        7.0,
+        6.7
+      ],
+      "coherence": [
+        8.4,
+        8.4
+      ],
+      "citation_accuracy": [
+        8.8,
+        8.8
+      ]
+    },
+    "are best the what": {
+      "relevance": [
+        10.0
+      ],
+      "depth": [
+        6.4
+      ],
+      "novelty": [
+        7.2
+      ],
+      "coherence": [
+        8.4
+      ],
+      "citation_accuracy": [
+        8.8
+      ]
+    },
+    "are avanced in what": {
+      "relevance": [
+        10.0
+      ],
+      "depth": [
+        6.8
+      ],
+      "novelty": [
+        6.8
+      ],
+      "coherence": [
+        8.4
+      ],
+      "citation_accuracy": [
+        8.8
+      ]
+    },
+    "computing? is quantum what": {
+      "relevance": [
+        10.0,
+        10.0,
+        8.5,
+        10.0,
+        10.0,
+        8.5,
+        10.0,
+        10.0,
+        10.0,
+        10.0
+      ],
+      "depth": [
+        2.7,
+        2.7,
+        2.5,
+        2.7,
+        2.7,
+        2.5,
+        2.7,
+        6.7,
+        4.4,
+        5.8
+      ],
+      "novelty": [
+        4.9,
+        4.9,
+        4.9,
+        4.9,
+        4.9,
+        4.9,
+        4.9,
+        8.7,
+        6.2,
+        7.2
+      ],
+      "coherence": [
+        7.2,
+        7.0,
+        7.1,
+        7.2,
+        7.2,
+        7.1,
+        7.2,
+        8.1,
+        7.5,
+        7.9
+      ],
+      "citation_accuracy": [
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        8.4,
+        4.1,
+        8.4
+      ]
+    },
+    "search space state": {
+      "relevance": [
+        10.0,
+        10.0,
+        10.0,
+        10.0,
+        10.0,
+        10.0
+      ],
+      "depth": [
+        2.9,
+        2.9,
+        2.9,
+        2.9,
+        2.9,
+        2.9
+      ],
+      "novelty": [
+        4.9,
+        4.9,
+        4.9,
+        4.9,
+        4.9,
+        4.9
+      ],
+      "coherence": [
+        7.8,
+        7.8,
+        7.8,
+        7.8,
+        7.8,
+        7.8
+      ],
+      "citation_accuracy": [
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5,
+        2.5
+      ]
+    },
+    "history is the what": {
+      "relevance": [
+        10.0
+      ],
+      "depth": [
+        6.1
+      ],
+      "novelty": [
+        8.6
+      ],
+      "coherence": [
+        8.4
+      ],
+      "citation_accuracy": [
+        8.4
+      ]
+    },
+    "cryptography impact of post-quantum": {
+      "relevance": [
+        9.3,
+        10.0,
+        10.0,
+        10.0,
+        10.0,
+        10.0,
+        10.0,
+        10.0
+      ],
+      "depth": [
+        3.0,
+        6.2,
+        6.1,
+        6.2,
+        6.3,
+        6.1,
+        6.4,
+        6.2
+      ],
+      "novelty": [
+        6.5,
+        7.9,
+        7.5,
+        8.3,
+        7.5,
+        6.7,
+        7.1,
+        7.2
+      ],
+      "coherence": [
+        7.5,
+        8.4,
+        8.4,
+        8.1,
+        8.4,
+        8.4,
+        8.4,
+        8.4
+      ],
+      "citation_accuracy": [
+        6.0,
+        8.8,
+        8.8,
+        8.8,
+        8.8,
+        8.8,
+        8.8,
+        8.8
+      ]
+    },
+    "agentic ai in quantum": {
+      "relevance": [
+        10.0,
+        8.2
+      ],
+      "depth": [
+        6.9,
+        7.5
+      ],
+      "novelty": [
+        8.0,
+        6.1
+      ],
+      "coherence": [
+        8.4,
+        8.0
+      ],
+      "citation_accuracy": [
+        8.8,
+        9.0
+      ]
+    },
+    "cancel query test": {
+      "relevance": [
+        10.0
+      ],
+      "depth": [
+        6.8
+      ],
+      "novelty": [
+        8.0
+      ],
+      "coherence": [
+        8.1
+      ],
+      "citation_accuracy": [
+        8.4
+      ]
+    },
+    "batteries impact of solid-state": {
+      "relevance": [
+        10.0
+      ],
+      "depth": [
+        6.3
+      ],
+      "novelty": [
+        7.4
+      ],
+      "coherence": [
+        8.3
+      ],
+      "citation_accuracy": [
+        8.8
+      ]
+    },
+    "advancements searcch space state": {
+      "relevance": [
+        10.0
+      ],
+      "depth": [
+        6.5
+      ],
+      "novelty": [
+        8.8
+      ],
+      "coherence": [
+        8.4
+      ],
+      "citation_accuracy": [
+        8.8
+      ]
+    },
+    "brand man new spider": {
+      "relevance": [
+        10.0
+      ],
+      "depth": [
+        5.9
+      ],
+      "novelty": [
+        8.8
+      ],
+      "coherence": [
+        8.1
+      ],
+      "citation_accuracy": [
+        8.4
+      ]
+    },
+    "rag": {
+      "relevance": [
+        10.0
+      ],
+      "depth": [
+        5.9
+      ],
+      "novelty": [
+        7.4
+      ],
+      "coherence": [
+        8.5
+      ],
+      "citation_accuracy": [
+        8.4
+      ]
+    },
+    "2026 market stock trends": {
+      "relevance": [
+        10.0
+      ],
+      "depth": [
+        6.4
+      ],
+      "novelty": [
+        6.9
+      ],
+      "coherence": [
+        8.5
+      ],
+      "citation_accuracy": [
+        8.4
+      ]
+    },
+    "artificial intelligence? is what": {
+      "relevance": [
+        10.0
+      ],
+      "depth": [
+        6.0
+      ],
+      "novelty": [
+        6.8
+      ],
+      "coherence": [
+        7.9
+      ],
+      "citation_accuracy": [
+        8.4
+      ]
+    },
+    "ai neuro-symbolic": {
+      "relevance": [
+        10.0,
+        10.0
+      ],
+      "depth": [
+        4.7,
+        5.8
+      ],
+      "novelty": [
+        6.6,
+        6.7
+      ],
+      "coherence": [
+        8.5,
+        8.3
+      ],
+      "citation_accuracy": [
+        8.4,
+        8.4
+      ]
+    },
+    "cryptography cybersecurity in quantum": {
+      "relevance": [
+        10.0
+      ],
+      "depth": [
+        7.1
+      ],
+      "novelty": [
+        7.0
+      ],
+      "coherence": [
+        8.5
+      ],
+      "citation_accuracy": [
+        8.4
       ]
     }
   }

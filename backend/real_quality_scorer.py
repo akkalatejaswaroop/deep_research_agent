@@ -27,13 +27,19 @@ from typing import Dict, Optional
 # LLM-as-Judge (Ollama phi3:mini)
 # ---------------------------------------------------------------------------
 
+_llm_disabled = False
+
 def _ollama_available() -> bool:
-    """Quick check if Ollama is running (2s timeout)."""
+    """Quick check if Ollama is running (0.5s timeout)."""
+    global _llm_disabled
+    if _llm_disabled:
+        return False
     try:
         import requests
-        r = requests.get("http://localhost:11434/api/tags", timeout=2)
+        r = requests.get("http://localhost:11434/api/tags", timeout=0.5)
         return r.status_code == 200
     except Exception:
+        _llm_disabled = True
         return False
 
 
@@ -93,7 +99,7 @@ Return ONLY valid JSON (no markdown, no explanation):
         response = requests.post(
             "http://localhost:11434/api/generate",
             json=payload,
-            timeout=120
+            timeout=5.0
         )
 
         if response.status_code == 200:
@@ -111,8 +117,8 @@ Return ONLY valid JSON (no markdown, no explanation):
                 if len(scores) == 5:
                     return scores
 
-    except Exception as e:
-        print(f"[QualityScorer] LLM scoring failed: {e}, falling back to heuristics")
+    except Exception:
+        pass
 
     return None
 

@@ -30,7 +30,11 @@ def run_e2e_test():
         {"url": "https://example.com/energy", "title": "AI Grid Management", "domain": "example.com", "content": "Sample content about AI and smart grids."}
     ]
 
-    with patch.object(main_module, "search_all_sources", return_value=mock_sources), \
+    os.environ["SIMULATED_MODE"] = "true"
+    with patch.object(main_module, "app_graph", None), \
+         patch.object(main_module, "search_all_sources", return_value=mock_sources), \
+         patch.object(main_module, "search_web_duckduckgo", return_value=mock_sources), \
+         patch.object(main_module, "search_wikipedia", return_value=[]), \
          patch.object(main_module, "call_llm", return_value="Verified synthesis response."):
 
         res = client.post(

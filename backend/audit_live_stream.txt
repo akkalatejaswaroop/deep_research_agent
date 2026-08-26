@@ -1,0 +1,140 @@
+data: {"node": "start", "session_id": "017a44d0-da73-4519-a950-e9c413698477"}
+
+data: {"node": "planner"}
+
+data: {"type": "thought", "message": "Analyzing query and generating sub-questions..."}
+
+data: {"type": "thought", "message": "Generated 8 research sub-questions."}
+
+data: {"node": "memory_retrieval"}
+
+data: {"type": "thought", "message": "Retrieving past research lessons and knowledge base data..."}
+
+data: {"track_id": 1, "track_text": "Which companies lead in the current state of quantum computing hardware and what is their market position?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 1: Which companies lead in the current state of quantum computing hardware and what is their market position?"}
+
+data: {"track_id": 2, "track_text": "What measurable ROI and business impact do the current state of quantum computing hardware solutions show?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 2: What measurable ROI and business impact do the current state of quantum computing hardware solutions show?"}
+
+data: {"track_id": 3, "track_text": "How do the top the current state of quantum computing hardware platforms compare on features and performance?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 3: How do the top the current state of quantum computing hardware platforms compare on features and performance?"}
+
+data: {"track_id": 4, "track_text": "What specific use cases and real deployments of the current state of quantum computing hardware exist?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 4: What specific use cases and real deployments of the current state of quantum computing hardware exist?"}
+
+data: {"track_id": 5, "track_text": "What are the key technical capabilities that define the current state of quantum computing hardware systems?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 5: What are the key technical capabilities that define the current state of quantum computing hardware systems?"}
+
+data: {"track_id": 6, "track_text": "What challenges and limitations affect the current state of quantum computing hardware adoption?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 6: What challenges and limitations affect the current state of quantum computing hardware adoption?"}
+
+data: {"track_id": 7, "track_text": "How fast is the the current state of quantum computing hardware market growing and what drives adoption?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 7: How fast is the the current state of quantum computing hardware market growing and what drives adoption?"}
+
+data: {"track_id": 8, "track_text": "What distinguishes leading the current state of quantum computing hardware vendors from competitors?", "track_status": "pending"}
+
+data: {"type": "thought", "message": "Track 8: What distinguishes leading the current state of quantum computing hardware vendors from competitors?"}
+
+data: {"type": "thought", "message": "Using 8 pre-generated sub-questions"}
+
+data: {"node": "searcher"}
+
+data: {"type": "thought", "message": "Searching the web for sources using Tavily, SerpAPI, DuckDuckGo, and Wikipedia..."}
+
+data: {"track_id": 1, "track_text": "Which companies lead in the current state of quantum computing hardware and what is their market position?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 1"}
+
+data: {"track_id": 2, "track_text": "What measurable ROI and business impact do the current state of quantum computing hardware solutions show?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 2"}
+
+data: {"track_id": 3, "track_text": "How do the top the current state of quantum computing hardware platforms compare on features and performance?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 3"}
+
+data: {"track_id": 4, "track_text": "What specific use cases and real deployments of the current state of quantum computing hardware exist?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 4"}
+
+data: {"track_id": 5, "track_text": "What are the key technical capabilities that define the current state of quantum computing hardware systems?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 5"}
+
+data: {"node": "searcher", "source_urls": ["https://www.amacad.org/publication/daedalus/quantum-ai", "https://www.pcworld.com/article/440397/dwave-wants-more-realworld-deployments-for-its-quantum-computer.html", "https://www.linkedin.com/pulse/intriguing-quantum-50-daniella-pontes-cissp-ybgof", "https://quantum.country/", "https://www.techtarget.com/whatis/definition/quantum"]}
+
+data: {"track_id": 6, "track_text": "What challenges and limitations affect the current state of quantum computing hardware adoption?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 6"}
+
+data: {"node": "searcher", "source_urls": ["https://www.amacad.org/publication/daedalus/quantum-ai", "https://www.pcworld.com/article/440397/dwave-wants-more-realworld-deployments-for-its-quantum-computer.html", "https://www.linkedin.com/pulse/intriguing-quantum-50-daniella-pontes-cissp-ybgof", "https://quantum.country/", "https://www.techtarget.com/whatis/definition/quantum", "https://entangledfuture.com/guides/top-quantum-computing-companies/", "https://patentpc.com/blog/whos-leading-the-quantum-race-market-share-investment-stats", "https://www.bqpsim.com/blogs/quantum-computing-companies", "https://thequantuminsider.com/2025/09/23/top-quantum-computing-companies/"]}
+
+data: {"track_id": 7, "track_text": "How fast is the the current state of quantum computing hardware market growing and what drives adoption?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 7"}
+
+data: {"node": "searcher", "source_urls": ["https://www.amacad.org/publication/daedalus/quantum-ai", "https://www.pcworld.com/article/440397/dwave-wants-more-realworld-deployments-for-its-quantum-computer.html", "https://www.linkedin.com/pulse/intriguing-quantum-50-daniella-pontes-cissp-ybgof", "https://quantum.country/", "https://www.techtarget.com/whatis/definition/quantum", "https://entangledfuture.com/guides/top-quantum-computing-companies/", "https://patentpc.com/blog/whos-leading-the-quantum-race-market-share-investment-stats", "https://www.bqpsim.com/blogs/quantum-computing-companies", "https://thequantuminsider.com/2025/09/23/top-quantum-computing-companies/", "https://en.wikipedia.org/wiki/Application_portfolio_management", "https://en.wikipedia.org/wiki/Roger_Kaufman", "https://entangledfuture.com/guides/state-of-quantum-computing-2026/", "https://mitsloan.mit.edu/ideas-made-to-matter/new-mit-report-captures-state-quantum-computing", "https://quantumconsortium.org/publication/2026-state-of-the-global-quantum-industry-report/"]}
+
+data: {"track_id": 8, "track_text": "What distinguishes leading the current state of quantum computing hardware vendors from competitors?", "track_status": "searching"}
+
+data: {"type": "thought", "message": "Running search for track 8"}
+
+data: {"node": "searcher", "source_urls": ["https://www.amacad.org/publication/daedalus/quantum-ai", "https://www.pcworld.com/article/440397/dwave-wants-more-realworld-deployments-for-its-quantum-computer.html", "https://www.linkedin.com/pulse/intriguing-quantum-50-daniella-pontes-cissp-ybgof", "https://quantum.country/", "https://www.techtarget.com/whatis/definition/quantum", "https://entangledfuture.com/guides/top-quantum-computing-companies/", "https://patentpc.com/blog/whos-leading-the-quantum-race-market-share-investment-stats", "https://www.bqpsim.com/blogs/quantum-computing-companies", "https://thequantuminsider.com/2025/09/23/top-quantum-computing-companies/", "https://en.wikipedia.org/wiki/Application_portfolio_management", "https://en.wikipedia.org/wiki/Roger_Kaufman", "https://entangledfuture.com/guides/state-of-quantum-computing-2026/", "https://mitsloan.mit.edu/ideas-made-to-matter/new-mit-report-captures-state-quantum-computing", "https://quantumconsortium.org/publication/2026-state-of-the-global-quantum-industry-report/", "https://en.wikipedia.org/wiki/Superconducting_quantum_computing", "https://en.wikipedia.org/wiki/Quantum_computing", "https://postquantum.com/quantum-computing-roadmaps-2025/", "https://entangledfuture.com/reports/quantum-hardware-matrix/", "https://smartqbit.net/quantum-hardware-platforms-compared-superconducting-ion-trap"]}
+
+data: {"node": "searcher", "source_urls": ["https://www.amacad.org/publication/daedalus/quantum-ai", "https://www.pcworld.com/article/440397/dwave-wants-more-realworld-deployments-for-its-quantum-computer.html", "https://www.linkedin.com/pulse/intriguing-quantum-50-daniella-pontes-cissp-ybgof", "https://quantum.country/", "https://www.techtarget.com/whatis/definition/quantum", "https://entangledfuture.com/guides/top-quantum-computing-companies/", "https://patentpc.com/blog/whos-leading-the-quantum-race-market-share-investment-stats", "https://www.bqpsim.com/blogs/quantum-computing-companies", "https://thequantuminsider.com/2025/09/23/top-quantum-computing-companies/", "https://en.wikipedia.org/wiki/Application_portfolio_management", "https://en.wikipedia.org/wiki/Roger_Kaufman", "https://entangledfuture.com/guides/state-of-quantum-computing-2026/", "https://mitsloan.mit.edu/ideas-made-to-matter/new-mit-report-captures-state-quantum-computing", "https://quantumconsortium.org/publication/2026-state-of-the-global-quantum-industry-report/", "https://en.wikipedia.org/wiki/Superconducting_quantum_computing", "https://en.wikipedia.org/wiki/Quantum_computing", "https://postquantum.com/quantum-computing-roadmaps-2025/", "https://entangledfuture.com/reports/quantum-hardware-matrix/", "https://smartqbit.net/quantum-hardware-platforms-compared-superconducting-ion-trap", "https://thequantuminsider.com/2026/02/23/understanding-the-quantum-computing-hardware-landscape/", "https://en.wikipedia.org/wiki/Noisy_intermediate-scale_quantum_computing", "https://en.wikipedia.org/wiki/Intelligence_Advanced_Research_Projects_Activity", "https://en.wikipedia.org/wiki/Hypercomputation"]}
+
+data: {"node": "searcher", "source_urls": ["https://www.amacad.org/publication/daedalus/quantum-ai", "https://www.pcworld.com/article/440397/dwave-wants-more-realworld-deployments-for-its-quantum-computer.html", "https://www.linkedin.com/pulse/intriguing-quantum-50-daniella-pontes-cissp-ybgof", "https://quantum.country/", "https://www.techtarget.com/whatis/definition/quantum", "https://entangledfuture.com/guides/top-quantum-computing-companies/", "https://patentpc.com/blog/whos-leading-the-quantum-race-market-share-investment-stats", "https://www.bqpsim.com/blogs/quantum-computing-companies", "https://thequantuminsider.com/2025/09/23/top-quantum-computing-companies/", "https://en.wikipedia.org/wiki/Application_portfolio_management", "https://en.wikipedia.org/wiki/Roger_Kaufman", "https://entangledfuture.com/guides/state-of-quantum-computing-2026/", "https://mitsloan.mit.edu/ideas-made-to-matter/new-mit-report-captures-state-quantum-computing", "https://quantumconsortium.org/publication/2026-state-of-the-global-quantum-industry-report/", "https://en.wikipedia.org/wiki/Superconducting_quantum_computing", "https://en.wikipedia.org/wiki/Quantum_computing", "https://postquantum.com/quantum-computing-roadmaps-2025/", "https://entangledfuture.com/reports/quantum-hardware-matrix/", "https://smartqbit.net/quantum-hardware-platforms-compared-superconducting-ion-trap", "https://thequantuminsider.com/2026/02/23/understanding-the-quantum-computing-hardware-landscape/", "https://en.wikipedia.org/wiki/Noisy_intermediate-scale_quantum_computing", "https://en.wikipedia.org/wiki/Intelligence_Advanced_Research_Projects_Activity", "https://en.wikipedia.org/wiki/Hypercomputation", "https://en.wikipedia.org/wiki/Many-worlds_interpretation", "https://en.wikipedia.org/wiki/Interpretations_of_quantum_mechanics"]}
+
+data: {"type": "thought", "message": "Found 25 sources from web search"}
+
+data: {"node": "filter"}
+
+data: {"type": "thought", "message": "Filtering and ranking sources by relevance to each sub-question..."}
+
+data: {"node": "synthesis"}
+
+data: {"type": "thought", "message": "Synthesizing findings for each research track..."}
+
+data: {"track_id": 1, "track_text": "Which companies lead in the current state of quantum computing hardware and what is their market position?", "track_status": "synthesizing"}
+
+data: {"type": "thought", "message": "Synthesizing for track 1"}
+
+data: {"track_id": 2, "track_text": "What measurable ROI and business impact do the current state of quantum computing hardware solutions show?", "track_status": "synthesizing"}
+
+data: {"type": "thought", "message": "Synthesizing for track 2"}
+
+data: {"track_id": 3, "track_text": "How do the top the current state of quantum computing hardware platforms compare on features and performance?", "track_status": "synthesizing"}
+
+data: {"type": "thought", "message": "Synthesizing for track 3"}
+
+data: {"track_id": 1, "track_text": "Which companies lead in the current state of quantum computing hardware and what is their market position?", "track_status": "completed"}
+
+data: {"type": "thought", "message": "Completed track 1"}
+
+data: {"track_id": 4, "track_text": "What specific use cases and real deployments of the current state of quantum computing hardware exist?", "track_status": "synthesizing"}
+
+data: {"type": "thought", "message": "Synthesizing for track 4"}
+
+data: {"track_id": 3, "track_text": "How do the top the current state of quantum computing hardware platforms compare on features and performance?", "track_status": "completed"}
+
+data: {"type": "thought", "message": "Completed track 3"}
+
+data: {"track_id": 5, "track_text": "What are the key technical capabilities that define the current state of quantum computing hardware systems?", "track_status": "synthesizing"}
+
+data: {"type": "thought", "message": "Synthesizing for track 5"}
+
+data: {"track_id": 2, "track_text": "What measurable ROI and business impact do the current state of quantum computing hardware solutions show?", "track_status": "completed"}
+
+data: {"type": "thought", "message": "Completed track 2"}
+
+data: {"track_id": 6, "track_text": "What challenges and limitations affect the current state of quantum computing hardware adoption?", "track_status": "synthesizing"}
+
+data: {"type": "thought", "message": "Synthesizing for track 6"}
+

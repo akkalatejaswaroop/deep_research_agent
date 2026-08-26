@@ -45,6 +45,16 @@ MAX_WRITES_PER_RUN = int(os.getenv("REX_MAX_WRITES_PER_RUN", "50"))
 EMBED_MODEL = os.getenv("REX_EMBED_MODEL", "nomic-embed-text")
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
 
+# Memory-policy config (Prompt 12 — see REX-Memory-Policy.md)
+HOT_RUNS = int(os.getenv("REX_HOT_RUNS", "3"))
+HOT_DAYS = float(os.getenv("REX_HOT_DAYS", "2"))
+COLD_IDLE_DAYS = float(os.getenv("REX_COLD_IDLE_DAYS", "30"))
+COLD_CONFIDENCE = float(os.getenv("REX_COLD_CONFIDENCE", "0.4"))
+CONSOLIDATION_MIN_CLUSTER = int(os.getenv("REX_CONSOLIDATION_MIN_CLUSTER", "8"))
+CONSOLIDATION_MAX_DEPTH = int(os.getenv("REX_CONSOLIDATION_MAX_DEPTH", "3"))
+CONSOLIDATION_EVERY_N_RUNS = int(os.getenv("REX_CONSOLIDATION_EVERY_N_RUNS", "10"))
+CLUSTER_SIM_THRESHOLD = float(os.getenv("REX_CLUSTER_SIM_THRESHOLD", "0.62"))
+
 # MCP tool registry (for LLM-driven agents)
 MCP_TOOLS: Dict[str, Any] = {}
 
@@ -245,6 +255,11 @@ class LocalVectorIndex:
         self._vectors.clear()
         self._texts.clear()
         self._id_list.clear()
+        if _embedding_index_cold is not None:
+            _embedding_index_cold._vectors.clear()
+            _embedding_index_cold._texts.clear()
+            _embedding_index_cold._id_list.clear()
+        cold_ids: List[str] = []
         for p in vault_path.rglob("*.md"):
             if ".obsidian" in str(p):
                 continue
@@ -253,16 +268,153 @@ class LocalVectorIndex:
                 # extract id from frontmatter
                 fm, _ = _parse_frontmatter(text)
                 nid = fm.get("id", "")
-                if nid:
-                    # use title + first 500 chars
-                    self.upsert(nid, fm.get("title", "") + " " + text[:500])
-                else:
-                    # fallback to filename
-                    self.upsert(p.stem, text[:500])
+                doc = (fm.get("title", "") + " " + text[:500]) if nid else text[:500]
+                key = nid or p.stem
+                self.upsert(key, doc)
+                if nid and _effective_tier(fm) == "cold":
+                    cold_ids.append(nid)
             except Exception:
                 continue
+        # partition: COLD notes live in the lazy second index, off the fast path
+        for nid in cold_ids:
+            _move_to_cold(nid)
 
 _embedding_index = LocalVectorIndex()
+
+# ---------------------------------------------------------------------------
+# Memory tiers (Prompt 12): HOT/WARM in the main index, COLD in a lazy second
+# index. Tier is independent of status. Forgetting != deleting.
+# ---------------------------------------------------------------------------
+
+_embedding_index_cold: Optional[LocalVectorIndex] = None
+_touch_log: Dict[str, float] = {}   # nid -> epoch of last in-session retrieval/link
+
+def _get_cold_index() -> "LocalVectorIndex":
+    global _embedding_index_cold
+    if _embedding_index_cold is None:
+        _embedding_index_cold = LocalVectorIndex()
+    return _embedding_index_cold
+
+def _parse_ts(value: Any) -> Optional[float]:
+    """Tolerant ISO-8601/date parser -> epoch seconds (UTC), or None."""
+    if not value:
+        return None
+    s = str(value).strip().replace("Z", "+00:00")
+    try:
+        from datetime import datetime, timezone as _tz
+        if "T" in s or "+" in s:
+            return datetime.fromisoformat(s).timestamp() if "+" in s or len(s) > 10 else None
+        return datetime.strptime(s[:10], "%Y-%m-%d").replace(tzinfo=_tz.utc).timestamp()
+    except Exception:
+        try:
+            from datetime import datetime, timezone as _tz
+            return datetime.strptime(s[:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=_tz.utc).timestamp()
+        except Exception:
+            return None
+
+def _effective_tier(fm: Dict[str, Any]) -> str:
+    """Explicit tier field wins; otherwise derive from recency (recent -> hot, else warm)."""
+    t = str(fm.get("tier", "")).lower()
+    if t in {"hot", "warm", "cold"}:
+        return t
+    ts = _parse_ts(fm.get("updated")) or _parse_ts(fm.get("created"))
+    if ts is None:
+        return "warm"
+    age_days = max(0.0, (time.time() - ts) / 86400.0)
+    return "hot" if age_days <= HOT_DAYS else "warm"
+
+def _touch_note(note_id: str):
+    """Record a retrieval hit; promotes COLD -> WARM at the index level immediately."""
+    with _embedding_index._lock:
+        _touch_log[note_id] = time.time()
+        cold = _embedding_index_cold
+    if cold is not None and note_id in cold._vectors:
+        vec = cold._vectors.pop(note_id)
+        txt = cold._texts.pop(note_id, "")
+        if note_id in cold._id_list:
+            cold._id_list.remove(note_id)
+        _embedding_index.upsert(note_id, txt or " ")
+
+def _move_to_cold(note_id: str):
+    """Move a note vector from the main index to the lazy cold index."""
+    txt = _embedding_index._texts.get(note_id, "")
+    vec = _embedding_index._vectors.pop(note_id, None)
+    if note_id in _embedding_index._id_list:
+        _embedding_index._id_list.remove(note_id)
+    if vec is not None:
+        _get_cold_index().upsert(note_id, txt or " ")
+
+def demote_to_cold(note_id: str, run_id: str = "consolidation") -> Dict[str, Any]:
+    """Persist tier: cold on a note WITHOUT touching status or bumping version.
+    Moves its embedding to the cold index."""
+    data = read_note(note_id)
+    fm = dict(data["frontmatter"])
+    body = data["body"]
+    fm["tier"] = "cold"
+    p = VAULT_PATH / data["path"]
+    content = _dump_frontmatter(fm, body)
+    if _rest_available():
+        if not _write_file_via_rest(data["path"], content):
+            _write_file_via_fs(p, content)
+    else:
+        _write_file_via_fs(p, content)
+    _move_to_cold(note_id)
+    _git_commit_vault("tier", note_id, "consolidation", "demote HOT/WARM -> COLD (memory policy decay/consolidation)")
+    return {"ok": True, "id": note_id, "tier": "cold"}
+
+def promote_to_warm(note_id: str, persist: bool = False) -> Dict[str, Any]:
+    """Reverse a cold demotion. Index-level immediately; frontmatter optionally."""
+    _touch_note(note_id)
+    if persist:
+        data = read_note(note_id)
+        fm = dict(data["frontmatter"])
+        if fm.get("tier") == "cold":
+            fm["tier"] = "warm"
+            p = VAULT_PATH / data["path"]
+            content = _dump_frontmatter(fm, data["body"])
+            if _rest_available():
+                if not _write_file_via_rest(data["path"], content):
+                    _write_file_via_fs(p, content)
+            else:
+                _write_file_via_fs(p, content)
+            _git_commit_vault("tier", note_id, "consolidation", "promote COLD -> WARM (retrieved or re-linked)")
+    return {"ok": True, "id": note_id, "tier": "warm"}
+
+def decay_pass(dry_run: bool = True, now: Optional[float] = None) -> Dict[str, int]:
+    """Memory-policy decay: demote stale+low-confidence notes to COLD,
+    promote touched COLD notes back to WARM. Never touches status."""
+    now = now or time.time()
+    demoted = promoted = 0
+    to_demote: List[str] = []
+    for fm, _body, rel in _scan_notes(skip_archive=True):
+        nid = str(fm.get("id", ""))
+        if not nid or fm.get("type") in {"research_run", "source", "system", "project"}:
+            continue
+        if str(fm.get("consolidated_into") or ""):
+            continue  # already superseded — handled by consolidation tagging
+        touched_at = _touch_log.get(nid)
+        last_activity = max(
+            [t for t in (_parse_ts(fm.get("updated")), _parse_ts(fm.get("created")),
+                         _parse_ts(fm.get("last_retrieved")), touched_at) if t is not None],
+            default=now)
+        idle_days = (now - last_activity) / 86400.0
+        conf = float(fm.get("confidence", 1.0))
+        tier = _effective_tier(fm)
+        if tier != "cold" and idle_days > COLD_IDLE_DAYS and conf < COLD_CONFIDENCE:
+            to_demote.append(nid)
+        elif tier == "cold" and touched_at is not None:
+            promote_to_warm(nid)
+            promoted += 1
+    if not dry_run:
+        for nid in to_demote:
+            try:
+                demote_to_cold(nid, run_id="consolidation")
+                demoted += 1
+            except Exception:
+                continue
+    else:
+        demoted = 0
+    return {"demoted": len(to_demote) if dry_run else demoted, "promoted": promoted}
 
 # ---------------------------------------------------------------------------
 # Rate limiting per run
@@ -512,8 +664,14 @@ def _classify_write(query_text: str, note_type: str, threshold: float = SIMILARI
             continue
     best_id = None
     best_score = 0.0
-    # use embedding index for scoring
+    # use embedding index for scoring (HOT+WARM fast path)
     scored = _embedding_index.search(query_text, top_k=5)
+    if best_score < threshold:
+        # duplicate-check miss: consult the lazy COLD index so near-duplicates of
+        # superseded notes are still caught, without paying its cost on every write
+        cold = _embedding_index_cold
+        if cold is not None and cold._vectors:
+            scored = scored + cold.search(query_text, top_k=5)
     # filter to same type
     for nid, score in scored:
         # find file to check type
@@ -591,16 +749,18 @@ def _pre_write_check(
 
     # 5. compute confidence from source_count + evidence_strength
     # simple: base 0.5 + 0.1 per supporting source (max 0.9) + evidence_strength boost
+    # an EXPLICITLY provided confidence is authoritative (schema §1); only fill gaps
     supporting = frontmatter.get("supporting_sources", [])
     evidence_strength = frontmatter.get("evidence_strength", "weak")
-    base = 0.5
-    if isinstance(supporting, list):
-        base += min(0.3, len(supporting) * 0.1)
-    if evidence_strength == "moderate":
-        base += 0.1
-    elif evidence_strength == "strong":
-        base += 0.2
-    frontmatter["confidence"] = round(min(1.0, base), 2)
+    if frontmatter.get("confidence") is None:
+        base = 0.5
+        if isinstance(supporting, list):
+            base += min(0.3, len(supporting) * 0.1)
+        if evidence_strength == "moderate":
+            base += 0.1
+        elif evidence_strength == "strong":
+            base += 0.2
+        frontmatter["confidence"] = round(min(1.0, base), 2)
 
     # 6. resolve note type against schema
     if note_type not in _ALLOWED_TYPES_SYS:
@@ -648,15 +808,21 @@ def _pre_write_check(
 # ---------------------------------------------------------------------------
 
 @mcp_tool("search_notes")
-def search_notes(query: str, type: Optional[str] = None, status: Optional[str] = None, limit: int = 10) -> List[Dict[str, Any]]:
+def search_notes(query: str, type: Optional[str] = None, status: Optional[str] = None, limit: int = 10, include_cold: bool = False) -> List[Dict[str, Any]]:
     """Search notes by semantic similarity + optional type/status filter.
-    Empty query + filters => metadata-style listing of matching notes."""
+    Empty query + filters => metadata-style listing of matching notes.
+    Default scope is HOT+WARM tiers; pass include_cold=True for Auditor/historical queries."""
     if not query and not type and not status:
         return []
     # use embedding index (skip for empty query — zero vector is meaningless)
     scored = _embedding_index.search(query, top_k=limit*2) if query else []
+    if include_cold and query:
+        cold = _embedding_index_cold
+        if cold is not None:
+            scored = scored + [(f"cold::{nid}", sc) for nid, sc in cold.search(query, top_k=limit*2)]
     results = []
-    for nid, score in scored:
+    for nid_raw, score in scored:
+        nid = nid_raw.split("cold::", 1)[1] if str(nid_raw).startswith("cold::") else nid_raw
         p = _vault_file_path(nid)
         if not p:
             continue
@@ -668,12 +834,13 @@ def search_notes(query: str, type: Optional[str] = None, status: Optional[str] =
             if status and fm.get("status") != status:
                 continue
             rel = str(p.relative_to(VAULT_PATH)).replace("\\", "/")
-            results.append({"id": nid, "title": fm.get("title",""), "path": rel, "score": round(score, 3)})
+            results.append({"id": nid, "title": fm.get("title",""), "path": rel, "score": round(score, 3),
+                            "tier": _effective_tier(fm)})
             if len(results) >= limit:
                 break
         except Exception:
             continue
-    # fallback to brute-force if index empty
+    # fallback to brute-force if index empty (respects tier scope unless include_cold)
     if not results:
         for p in VAULT_PATH.rglob("*.md"):
             if ".obsidian" in str(p):
@@ -685,25 +852,34 @@ def search_notes(query: str, type: Optional[str] = None, status: Optional[str] =
                     continue
                 if status and fm.get("status") != status:
                     continue
+                if not include_cold and _effective_tier(fm) == "cold":
+                    continue
                 if query.lower() in txt.lower() or query.lower() in fm.get("title","").lower():
                     rel = str(p.relative_to(VAULT_PATH)).replace("\\", "/")
-                    results.append({"id": fm.get("id", p.stem), "title": fm.get("title",""), "path": rel, "score": 0.5})
+                    results.append({"id": fm.get("id", p.stem), "title": fm.get("title",""), "path": rel, "score": 0.5,
+                                    "tier": _effective_tier(fm)})
                     if len(results) >= limit:
                         break
             except Exception:
                 continue
-    return results[:limit]
+    out = results[:limit]
+    # every retrieval hit counts as a touch — COLD notes promote back to WARM
+    for r in out:
+        _touch_note(r["id"])
+    return out
 
 @mcp_tool("read_note")
 def read_note(id: str) -> Dict[str, Any]:
-    """Read note by id -> {frontmatter, body}."""
+    """Read note by id -> {frontmatter, body}. Counts as a retrieval touch (may promote COLD->WARM)."""
     # try REST first
     rest = _read_via_rest(id)
     if rest:
+        _touch_note(id)
         return {"frontmatter": rest["frontmatter"], "body": rest["body"], "path": rest["path"]}
     fs = _read_via_fs(id)
     if not fs:
         raise FileNotFoundError(f"Note {id} not found")
+    _touch_note(id)
     return {"frontmatter": fs["frontmatter"], "body": fs["body"], "path": fs["path"]}
 
 @mcp_tool("search_by_metadata")
@@ -1168,6 +1344,133 @@ def apply_evolution_to_note(note_id: str, expected_version: int, proposal_id: st
     return update_note(note_id, expected_version,
                        {"frontmatter": {"changed_by": merged}},
                        changelog_reason=reason, run_id=run_id)
+
+# ---------------------------------------------------------------------------
+# Consolidation (Prompt 12) — the ONLY write path that folds notes upward.
+# Invariants (Rule 22): never delete/archive originals, tier ⊥ status,
+# derived_from completeness, source-weighted confidence, depth cap.
+# ---------------------------------------------------------------------------
+
+_CONSOLIDATABLE_TYPES = {"claim", "fact", "hypothesis", "concept", "framework"}
+
+def weighted_cluster_confidence(members_fm: List[Dict[str, Any]]) -> float:
+    """conf = Σ(conf_i × w_i)/Σw_i with w_i = max(1, |supporting_sources_i|).
+    Volume never manufactures certainty — see REX-Memory-Policy §2.5."""
+    num = den = 0.0
+    for fm in members_fm:
+        try:
+            conf = float(fm.get("confidence", 0.5))
+        except Exception:
+            conf = 0.5
+        w = max(1, len(fm.get("supporting_sources") or []))
+        num += conf * w
+        den += w
+    return round(num / den, 2) if den else 0.0
+
+@mcp_tool("create_consolidated_note")
+def create_consolidated_note(cluster_ids: List[str], note_type: str, title: str,
+                             body: Optional[str] = None, run_id: str = "consolidation") -> Dict[str, Any]:
+    """Consolidate a cluster of related notes into ONE concept/framework note.
+    Originals are tagged `consolidated-into`, stamped `consolidated_into`,
+    flipped to tier COLD (status untouched), and kept forever."""
+    if note_type not in {"concept", "framework"}:
+        raise ValueError(f"consolidated note type must be concept|framework, got {note_type}")
+    ids = [str(x) for x in cluster_ids]
+    if len(ids) < CONSOLIDATION_MIN_CLUSTER:
+        raise ValueError(f"cluster too small: {len(ids)} < CONSOLIDATION_MIN_CLUSTER={CONSOLIDATION_MIN_CLUSTER}")
+    # read every member; reject already-consolidated notes
+    members: List[Tuple[Dict[str, Any], str, str]] = []
+    for nid in ids:
+        d = read_note(nid)
+        fm = d["frontmatter"]
+        if str(fm.get("consolidated_into") or ""):
+            raise ValueError(f"{nid} already consolidated into {fm['consolidated_into']}")
+        if fm.get("type") not in _CONSOLIDATABLE_TYPES:
+            raise ValueError(f"{nid} type {fm.get('type')} not consolidatable")
+        members.append((fm, d["body"], d["path"]))
+    # recursion cap
+    parent_depth = max([int(fm.get("consolidation_depth", 0) or 0) for fm, _, _ in members] or [0])
+    depth = parent_depth + 1
+    if depth > CONSOLIDATION_MAX_DEPTH:
+        raise ValueError(f"consolidation depth {depth} exceeds REX_CONSOLIDATION_MAX_DEPTH={CONSOLIDATION_MAX_DEPTH}")
+    # aggregate provenance across the whole cluster
+    src_union: List[str] = []
+    for fm, _, _ in members:
+        for s in (fm.get("supporting_sources") or []):
+            if s not in src_union:
+                src_union.append(s)
+    confidence = weighted_cluster_confidence([fm for fm, _, _ in members])
+    # deterministic id from cluster membership + title
+    digest = hashlib.sha256(("|".join(sorted(ids)) + "|" + title).encode()).hexdigest().upper()
+    ulid = re.sub(r"[^0-9A-HJKMNP-TV-Z]", "0", ("01J8Y" + digest)[:26])[:26]
+    nid_new = f"{'CON' if note_type == 'concept' else 'FRM'}-{ulid}"
+    now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    # synthesize body if caller didn't supply one
+    if not body:
+        est, disp, open_ = [], [], []
+        for fm, _, _ in members:
+            st = str(fm.get("status", ""))
+            line = f"- **{fm.get('title','')}** ({st}, conf {fm.get('confidence')}) [[{fm.get('id')}]]"
+            if st == "disputed":
+                disp.append(line)
+            elif st in {"verified", "active"} and fm.get("type") in {"fact", "claim"}:
+                est.append(line)
+            else:
+                open_.append(line)
+        body = (f"# {title}\n\n"
+                f"> Synthesized by the Consolidation Agent from {len(ids)} notes "
+                f"(depth {depth}). Source-weighted confidence: Σ(conf_i×w_i)/Σw_i.\n\n"
+                f"## Established\n" + ("\n".join(est[:10]) or "- (none)") + "\n\n"
+                f"## Disputed\n" + ("\n".join(disp[:10]) or "- (none)") + "\n\n"
+                f"## Open\n" + ("\n".join(open_[:10]) or "- (none)") + "\n\n"
+                f"## Sources\n" + ("\n".join(f"- {s}" for s in src_union[:20]) or "- (no external sources)") + "\n")
+    rel_lines = "\n".join(f"- derived_from:: [[{x}]]" for x in ids)
+    if "## Relationships" in body:
+        body = body.replace("## Relationships", f"## Relationships\n{rel_lines}", 1)
+    else:
+        body = body.rstrip() + f"\n\n## Relationships\n{rel_lines}\n"
+    new_fm = {
+        "id": nid_new, "type": note_type, "title": title, "status": "active",
+        "confidence": confidence, "created": now_iso, "updated": now_iso,
+        "version": 1, "source_count": len(src_union), "agent": "consolidator",
+        "tags": ["consolidation"], "tier": "hot",
+        "supporting_sources": src_union,
+        "consolidation_depth": depth,
+        "derived_from": [f"[[{x}]]" for x in ids],
+        "_changelog_reason": f"consolidate cluster of {len(ids)} notes (Rule 22)",
+    }
+    # the synthesis is intentionally exempt from duplicate classification —
+    # it overlaps its own members by construction (same trick as research_run writes)
+    global SIMILARITY_THRESHOLD
+    _saved_thresh = SIMILARITY_THRESHOLD
+    SIMILARITY_THRESHOLD = 0.999
+    try:
+        created = create_note(note_type, new_fm, body, run_id=run_id)
+    finally:
+        SIMILARITY_THRESHOLD = _saved_thresh
+    # stamp + chill every original (never delete, never touch status)
+    chilled = []
+    for fm, orig_body, orig_path in members:
+        oid = fm.get("id")
+        tags = list(fm.get("tags") or [])
+        if "consolidated-into" not in tags:
+            tags.append("consolidated-into")
+        new_body = orig_body.rstrip() + f"\n\n## Consolidation\nConsolidated into [[{nid_new}]] — superseded summary; retained for provenance (Rule 22).\n"
+        update_note(oid, int(fm.get("version", 1)),
+                    {"frontmatter": {"tier": "cold", "consolidated_into": f"[[{nid_new}]]", "tags": tags},
+                     "body": new_body},
+                    changelog_reason=f"folded into consolidated {note_type} {nid_new}",
+                    run_id=run_id)
+        _move_to_cold(oid)   # update_note re-upserts to main index — re-partition afterwards
+        chilled.append(oid)
+    _git_commit_vault("consolidate", nid_new, "consolidator",
+                      f"folded {len(chilled)} notes into {note_type} (weighted conf {confidence})")
+    return {
+        "ok": True, "id": nid_new, "type": note_type, "title": title,
+        "confidence": confidence, "source_count": len(src_union),
+        "consolidation_depth": depth, "cluster_size": len(chilled),
+        "chilled_ids": chilled,
+    }
 
 # ---------------------------------------------------------------------------
 # Provenance READ tools (Prompt 11) — provenance as queryable trail

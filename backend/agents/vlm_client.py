@@ -41,10 +41,11 @@ def _read_claude(b64_image: str, prompt: str) -> str:
             ]
         }]
     }
+    llm_timeout = int(os.getenv("LLM_TIMEOUT", "120"))
     try:
         r = requests.post(
             "https://api.anthropic.com/v1/messages",
-            json=body, headers=headers, timeout=60
+            json=body, headers=headers, timeout=llm_timeout
         )
         data = r.json()
         return data.get("content", [{}])[0].get("text", "")
@@ -72,10 +73,11 @@ def _read_openai(b64_image: str, prompt: str) -> str:
             ]
         }]
     }
+    llm_timeout = int(os.getenv("LLM_TIMEOUT", "120"))
     try:
         r = requests.post(
             "https://api.openai.com/v1/chat/completions",
-            json=body, headers=headers, timeout=60
+            json=body, headers=headers, timeout=llm_timeout
         )
         data = r.json()
         return data.get("choices", [{}])[0].get("message", {}).get("content", "")

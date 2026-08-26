@@ -123,7 +123,6 @@ Node → event_queue.put(event) → SSE generator → event_queue.get_nowait() �
 | GET | `/api/v1/learning-history` | List all lessons |
 | GET | `/api/v1/learning-history/stream` | SSE stream for new lessons |
 | GET | `/api/v1/learning-history/kpi` | Aggregate KPIs |
-| GET | `/api/v1/trending-topics` | Random trending topics |
 | GET | `/api/n8n/health` | n8n connectivity check |
 
 ### Audit Findings

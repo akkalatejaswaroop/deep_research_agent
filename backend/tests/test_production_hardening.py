@@ -97,6 +97,10 @@ class TestLLMResilience:
 class TestCallLLMHardening:
     """Test that call_llm internal hardening works correctly."""
 
+    def setup_method(self):
+        from main import _llm_retry_counts
+        _llm_retry_counts.clear()
+
     @patch("main._call_llm_once", return_value="")
     def test_call_llm_retries_on_empty(self, mock_once):
         """call_llm should retry up to 3 times when _call_llm_once returns empty."""

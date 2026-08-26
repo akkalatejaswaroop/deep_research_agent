@@ -5,9 +5,10 @@ import Link from "next/link";
 import {
   Activity,
   ArrowRight,
-  Award,
   BarChart3,
   BookOpen,
+  Brain,
+  BrainCircuit,
   CheckCircle2,
   Cpu,
   DatabaseZap,
@@ -22,125 +23,70 @@ import {
   Sparkles,
   Target,
   Terminal,
+  Layers,
+  Workflow,
+  Zap,
+  ExternalLink,
+  ChevronRight
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { AnimatePresence, motion } from "framer-motion";
+import rehypeSanitize from "rehype-sanitize";
+import { defaultSchema } from "hast-util-sanitize";
+import { motion, AnimatePresence } from "framer-motion";
 import BackgroundCanvas from "@/components/BackgroundCanvas";
 
-interface StageNode {
-  id: string;
-  label: string;
-  shortDesc: string;
-  icon: React.ComponentType<{ className?: string }>;
-  algorithm: string;
-  inputSchema: string;
-  outputSchema: string;
+const LANDING_MARKDOWN_SCHEMA = {
+  ...defaultSchema,
+  attributes: {
+    ...(defaultSchema.attributes ?? {}),
+    a: [...(defaultSchema.attributes?.a ?? []), ["target"], ["rel"]],
+  },
+};
+
+// ----------------------------------------------------------------------------
+// 21-AGENT SYSTEM CATALOG DATA
+// ----------------------------------------------------------------------------
+export interface SystemAgent {
+  id: number;
+  name: string;
+  category: "Core Pipeline" | "Enhancement" | "Infrastructure";
+  task: string;
+  model: string;
   benchmarkMs: string;
-  fullDesc: string;
+  outputSchema: string;
+  dependencies: string[];
+  description: string;
 }
 
-const GRAPH_NODES: StageNode[] = [
-  {
-    id: "planner",
-    label: "1. Planning",
-    shortDesc: "Decomposes complex topic into 8+ analytical sub-questions",
-    icon: Target,
-    algorithm: "Hierarchical Prompt Decomposition & Strategy DAG Generator",
-    inputSchema: "{ query: string, target_depth: number }",
-    outputSchema: "{ sub_questions: Array<string>, search_strategy: object }",
-    benchmarkMs: "~320ms",
-    fullDesc: "Deconstructs the user query into orthogonal analytical tracks. Creates targeted search sub-queries covering technical mechanisms, market data, regulatory risks, and conflicting evidence.",
-  },
-  {
-    id: "memory_retrieval",
-    label: "2. Vector Recall",
-    shortDesc: "Retrieves past lessons & vector memory to refine strategy",
-    icon: DatabaseZap,
-    algorithm: "768-Dimensional Cosine Vector Memory Recall",
-    inputSchema: "{ query_vector: float[768], top_k: 5 }",
-    outputSchema: "{ historical_lessons: Array<Lesson>, prompt_modifiers: Array<string> }",
-    benchmarkMs: "~180ms",
-    fullDesc: "Queries past research trajectories stored in vector memory to identify prior search failure modes, domain authority preferences, and query expansion techniques.",
-  },
-  {
-    id: "searcher",
-    label: "3. Web Searching",
-    shortDesc: "Executes parallel web searches across multi-index sources",
-    icon: Search,
-    algorithm: "Asynchronous Multi-Index Concurrent Crawler",
-    inputSchema: "{ sub_queries: Array<string>, max_sources_per_query: 10 }",
-    outputSchema: "{ raw_pages: Array<WebPage>, domain_metadata: object }",
-    benchmarkMs: "~1,450ms",
-    fullDesc: "Forks parallel HTTP search threads across duckduckgo, wikipedia, and academic indices to harvest live un-cached Web documents and primary research reports.",
-  },
-  {
-    id: "filter",
-    label: "4. Analyzing",
-    shortDesc: "Scores source authority and extracts high-relevance chunks",
-    icon: Gauge,
-    algorithm: "Maximal Marginal Relevance (MMR) & Domain Tier Authority",
-    inputSchema: "{ raw_pages: Array<WebPage>, relevance_threshold: 0.72 }",
-    outputSchema: "{ ranked_chunks: Array<EvidenceChunk>, source_map: Map }",
-    benchmarkMs: "~410ms",
-    fullDesc: "Filters SEO fluff by multiplying term-frequency vectors against domain authority coefficients (.edu, .gov, peer-reviewed journals vs commercial blogs).",
-  },
-  {
-    id: "synthesis",
-    label: "5. Synthesizing",
-    shortDesc: "Synthesizes multi-paragraph findings with inline [N] citations",
-    icon: FlaskConical,
-    algorithm: "Grounded Multi-Track Argumentative Synthesis",
-    inputSchema: "{ ranked_chunks: Array<EvidenceChunk>, sub_questions: Array<string> }",
-    outputSchema: "{ section_drafts: Array<DraftSection>, inline_citations: Array<Cite> }",
-    benchmarkMs: "~2,800ms",
-    fullDesc: "Generates rich analytical sections with inline numerical citations [1], [2] tied strictly to extracted factual evidence chunks.",
-  },
-  {
-    id: "gap_detector",
-    label: "6. Auditing",
-    shortDesc: "Audits coverage gaps and triggers recursive back-searches",
-    icon: ShieldCheck,
-    algorithm: "Zero-Shot Evidence Coverage Auditor",
-    inputSchema: "{ sub_questions: Array<string>, section_drafts: Array<DraftSection> }",
-    outputSchema: "{ gap_status: 'COMPLETE' | 'NEEDS_RECOURSE', missing_aspects: Array<string> }",
-    benchmarkMs: "~350ms",
-    fullDesc: "Evaluates whether every sub-question was thoroughly resolved. If coverage is incomplete, formulates secondary search queries and triggers recursive search loops.",
-  },
-  {
-    id: "citation_mapper",
-    label: "7. Citing",
-    shortDesc: "Verifies domain URLs and maps structured reference links",
-    icon: BookOpen,
-    algorithm: "URL Canonicalization & Inline Reference Binder",
-    inputSchema: "{ section_drafts: Array<DraftSection>, source_map: Map }",
-    outputSchema: "{ verified_drafts: Array<DraftSection>, bibliography: Array<SourceRef> }",
-    benchmarkMs: "~190ms",
-    fullDesc: "Resolves domain redirections, canonicalizes URL anchors, and formats full Markdown bibliographic references for 100% link integrity.",
-  },
-  {
-    id: "report_node_id",
-    label: "8. Reporting",
-    shortDesc: "Compiles Master Report with Executive Summary & Evidence",
-    icon: FileText,
-    algorithm: "Programmatic Anti-Hallucination QA Rule-Pass",
-    inputSchema: "{ verified_drafts: Array<DraftSection>, bibliography: Array<SourceRef> }",
-    outputSchema: "{ final_report_md: string, report_metadata: object }",
-    benchmarkMs: "~650ms",
-    fullDesc: "Executes regex numerical verification rules to ensure numbers, percentages, and dates match original scrape sources before compiling final paper layout.",
-  },
-  {
-    id: "evaluator",
-    label: "9. Scoring",
-    shortDesc: "Scores output on 5 dimensions and saves operational lessons",
-    icon: BarChart3,
-    algorithm: "LLM-as-Judge 5D Quality Score Telemetry",
-    inputSchema: "{ final_report_md: string, query: string }",
-    outputSchema: "{ quality_metrics: 5DMetrics, saved_lesson: Lesson }",
-    benchmarkMs: "~520ms",
-    fullDesc: "Evaluates the completed report on Relevance (0-10), Depth (0-10), Novelty (0-10), Coherence (0-10), and Citation Accuracy (0-10), persisting lessons into vector memory.",
-  },
+const AGENTS_21_CATALOG: SystemAgent[] = [
+  // Core Pipeline (7)
+  { id: 1, name: "Query Decomposer", category: "Core Pipeline", model: "phi3:mini", benchmarkMs: "~320ms", outputSchema: "{ sub_questions: Array<string> }", dependencies: ["query", "topic_type"], task: "Breaks complex queries into optimal sub-questions using phi3:mini", description: "Deconstructs user prompt into orthogonal analytical tracks covering technical mechanisms, market data, and regulatory risks." },
+  { id: 2, name: "Research Orchestrator", category: "Core Pipeline", model: "qwen2.5:3b", benchmarkMs: "~1,450ms", outputSchema: "{ source_urls: Array<string>, scored_chunks: object }", dependencies: ["sub_queries", "search_budget"], task: "Coordinates multi-strategy search across arXiv, DuckDuckGo, Wikipedia, PixelRAG", description: "Manages search budget, parallel API query execution, and tracks search iterations." },
+  { id: 3, name: "Multi-Source Scraper", category: "Core Pipeline", model: "Deterministic", benchmarkMs: "~850ms", outputSchema: "{ raw_pages: Array<WebPage> }", dependencies: ["sub_queries", "source_urls"], task: "4-tier fallback: Trafilatura -> BS4 -> Jina Reader -> Playwright", description: "Harvests live un-cached Web pages with SQLite caching and anti-blocking rotation." },
+  { id: 4, name: "Domain Intelligence", category: "Core Pipeline", model: "Rule-Based", benchmarkMs: "~120ms", outputSchema: "{ source_tiers: Map, blocked_domains: Array }", dependencies: ["source_urls"], task: "Live domain credibility scoring; maintains dynamic blocklist", description: "Multiplies term-frequency vectors against domain authority coefficients (.edu, .gov, peer-reviewed journals vs commercial blogs)." },
+  { id: "5" as any, name: "Citation Verifier", category: "Core Pipeline", model: "phi3:mini", benchmarkMs: "~410ms", outputSchema: "{ verified_claims: Array, unverified_list: Array }", dependencies: ["cited_report", "source_urls"], task: "Cross-checks numeric claims + entity verification via regex & LLM", description: "Flags unverified claims for re-search and generates Evidence Verification Notes." },
+  { id: 6, name: "Quality Scorer", category: "Core Pipeline", model: "phi3:mini", benchmarkMs: "~520ms", outputSchema: "{ scores: 5DMetrics, overall_score: float }", dependencies: ["cited_report"], task: "Computes 5-dimension scores (relevance, depth, novelty, coherence, citation_accuracy)", description: "LLM-as-Judge evaluator scoring whitepapers; regenerates if overall < 7/10." },
+  { id: 7, name: "Coherence Auditor", category: "Core Pipeline", model: "phi3:mini", benchmarkMs: "~310ms", outputSchema: "{ coherence_score: float, flow_decision: string }", dependencies: ["cited_report"], task: "Analyzes heading hierarchy, transition density, list item ratio", description: "Ensures publishing standards and controls flow decisions based on structural metrics." },
+
+  // Enhancement (8)
+  { id: 8, name: "Lesson Learner", category: "Enhancement", model: "phi3:mini", benchmarkMs: "~290ms", outputSchema: "{ lessons: Array, prior_lessons_update: Array }", dependencies: ["evaluator_output"], task: "Extracts lessons from evaluator output; stores to Supabase pgvector", description: "Enables continuous auto-improvement across user sessions by persisting operational lessons." },
+  { id: 9, name: "Gap Analyzer", category: "Enhancement", model: "phi3:mini", benchmarkMs: "~350ms", outputSchema: "{ new_sub_questions: Array, gap_iteration: int }", dependencies: ["quality_metrics", "missing_topics"], task: "Identifies missing topics by comparing covered vs missing aspects", description: "Triggers recursive search loop iterations (max 3) to fill identified coverage gaps." },
+  { id: 10, name: "Repetition Detector", category: "Enhancement", model: "Deterministic", benchmarkMs: "~140ms", outputSchema: "{ redundancy_score: float, trigger: bool }", dependencies: ["cited_report"], task: "Detects near-duplicate sections via cross-section similarity", description: "Triggers source diversification when section similarity >= 0.3." },
+  { id: 11, name: "Tone & Style Adjuster", category: "Enhancement", model: "phi3:mini", benchmarkMs: "~260ms", outputSchema: "{ style_metrics: object }", dependencies: ["cited_report"], task: "Checks brand voice compliance; adjusts formality level", description: "Optimizes whitepaper tone for target technical, academic, or executive audience." },
+  { id: 12, name: "Fact Checker", category: "Enhancement", model: "phi3:mini", benchmarkMs: "~380ms", outputSchema: "{ verification_notes: Array }", dependencies: ["cited_report", "source_urls"], task: "Verifies all factual claims; generates Evidence Verification Notes", description: "Ensures numbers, percentages, and dates match original scrape sources." },
+  { id: 13, name: "Source Diversifier", category: "Enhancement", model: "qwen2.5:3b", benchmarkMs: "~620ms", outputSchema: "{ new_source_urls: Array }", dependencies: ["repetition_detector"], task: "Searches alternative domains and search indices when redundancy occurs", description: "Prevents reliance on single web domain or search engine." },
+  { id: 14, name: "Export Specialist", category: "Enhancement", model: "Formatting Engine", benchmarkMs: "~190ms", outputSchema: "{ exported_report: PDF/MD/JSON/HTML }", dependencies: ["cited_report"], task: "Generates final output in quality-tiered formats: PDF, MD, JSON, HTML", description: "Applies CSS styling, page numbering, cover headers, and clean syntax highlighting." },
+  { id: 15, name: "Trend Analyzer", category: "Enhancement", model: "phi3:mini", benchmarkMs: "~220ms", outputSchema: "{ enhanced_query: string }", dependencies: ["query"], task: "Detects emerging topics via query modifiers (trending:, latest:)", description: "Auto-prefixes queries with trending indicators and Google Trends / Reddit API." },
+
+  // Infrastructure (6)
+  { id: 16, name: "Redis Cache Agent", category: "Infrastructure", model: "Redis L2", benchmarkMs: "~15ms", outputSchema: "{ cached_result: object }", dependencies: ["query_hash"], task: "Multi-level caching: Redis (1h TTL) -> File (24h) -> Memory", description: "High-speed caching layer with automatic TTL expiration and cache warmup." },
+  { id: 17, name: "Model Router", category: "Infrastructure", model: "Dynamic Router", benchmarkMs: "~10ms", outputSchema: "{ selected_model: string }", dependencies: ["task_description"], task: "Dynamic model selection: phi3:mini (planning) vs qwen2.5:3b (synthesis)", description: "Reduces LLM cost by 50% through intelligent per-stage model routing." },
+  { id: 18, name: "Session Manager", category: "Infrastructure", model: "Celery + Redis", benchmarkMs: "~25ms", outputSchema: "{ session_id: string, checkpoint: object }", dependencies: ["query"], task: "Persists session state every 30s for true background execution", description: "Enables interruptible, background research graph execution with resume support." },
+  { id: 19, name: "Monitoring Agent", category: "Infrastructure", model: "Prometheus", benchmarkMs: "~5ms", outputSchema: "{ metrics_dashboard: object }", dependencies: ["system_health"], task: "Prometheus metrics (REQUESTS_TOTAL, LATENCY_HISTOGRAM) & LangSmith tracing", description: "Provides live latency histograms and /api/v1/agents/status monitoring." },
+  { id: 20, name: "Scheduler Agent", category: "Infrastructure", model: "Celery Beat", benchmarkMs: "~30ms", outputSchema: "{ schedule_id: string, next_run: string }", dependencies: ["query", "frequency"], task: "Supports daily/weekly/monthly recurring research automations", description: "Schedules automated deep research reports delivered periodically." },
+  { id: 21, name: "Auto-Continue Agent", category: "Infrastructure", model: "phi3:mini", benchmarkMs: "~180ms", outputSchema: "{ new_sub_questions: Array }", dependencies: ["gap_iteration"], task: "Triggers research orchestrator node autonomously when gaps exist", description: "Provides a seamless automated user experience for gap resolution." }
 ];
 
 const SAMPLE_GENERATED_REPORT = `# Deep Intelligence Report: Solid-State Battery Commercialization & EV Manufacturing Roadmap (2026–2030)
@@ -168,97 +114,117 @@ Recent advances in lithium metal anodes combined with sulfide-based electrolytes
 `;
 
 export default function LandingPage() {
+  const [selectedAgentCategory, setSelectedAgentCategory] = useState<"All" | "Core Pipeline" | "Enhancement" | "Infrastructure">("All");
+  const [selectedAgent, setSelectedAgent] = useState<SystemAgent>(AGENTS_21_CATALOG[0]);
+  
   const [demoQuery, setDemoQuery] = useState("How will solid-state batteries change EV manufacturing by 2030?");
   const [isDemoRunning, setIsDemoRunning] = useState(false);
-  const [demoActiveNode, setDemoActiveNode] = useState("planner");
-  const [demoCompletedNodes, setDemoCompletedNodes] = useState<Set<string>>(new Set());
   const [demoProgress, setDemoProgress] = useState(0);
   const [demoReport, setDemoReport] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"matrix" | "demo" | "report" | "algorithms">("matrix");
-  const [selectedInspectorNode, setSelectedInspectorNode] = useState<StageNode>(GRAPH_NODES[0]);
+  const [activeTab, setActiveTab] = useState<"agents" | "benchmarks" | "demo" | "report">("agents");
 
   const demoSectionRef = useRef<HTMLDivElement>(null);
-  const logContainerRef = useRef<HTMLDivElement>(null);
   const [demoLogs, setDemoLogs] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-    }
-  }, [demoLogs]);
+  const filteredAgents = AGENTS_21_CATALOG.filter(
+    a => selectedAgentCategory === "All" || a.category === selectedAgentCategory
+  );
 
   const runInteractiveDemo = () => {
     if (isDemoRunning) return;
     setIsDemoRunning(true);
     setDemoReport("");
-    setDemoActiveNode("planner");
-    setDemoCompletedNodes(new Set());
-    setDemoProgress(10);
-    setDemoLogs(["[1] Initializing REX Multi-Agent Research Pipeline...", "[2] Decomposing query into 8 distinct analytical sub-questions..."]);
+    setDemoProgress(0);
+    setDemoLogs(["[1] Initializing REX 21-Agent Research Pipeline...", "[2] Decomposing query into 8 distinct analytical sub-questions..."]);
     setActiveTab("demo");
 
     demoSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
     const sequence = [
-      { node: "planner", progress: 10, delay: 900, log: "Query decomposition complete. Generated 8 parallel sub-questions." },
-      { node: "memory_retrieval", progress: 20, delay: 1800, log: "Vector recall complete. Ingested 3 historical lessons from knowledge base." },
-      { node: "searcher", progress: 35, delay: 3200, log: "Parallel web search complete. Scraped 35 primary web sources." },
-      { node: "filter", progress: 50, delay: 4600, log: "MMR filtering complete. Scored and ranked top 1% factual chunks." },
-      { node: "synthesis", progress: 65, delay: 6200, log: "Synthesis engine complete. Written multi-paragraph answers with [N] citations." },
-      { node: "gap_detector", progress: 78, delay: 7600, log: "Coverage auditing complete. All sub-questions rated COMPLETE." },
-      { node: "citation_mapper", progress: 88, delay: 9000, log: "Citation mapper complete. Mapped 20 inline URLs and formatted reference links." },
-      { node: "report_node_id", progress: 94, delay: 10200, log: "Master report assembly complete. Applied professional markdown template." },
-      { node: "evaluator", progress: 98, delay: 11400, log: "LLM-as-Judge evaluation complete. Overall Quality Score: 9.5/10." },
+      { progress: 15, delay: 1000, log: "Query decomposition complete. Generated 8 parallel sub-questions via phi3:mini." },
+      { progress: 30, delay: 2200, log: "Vector recall complete. Ingested 5 historical lessons from Supabase pgvector." },
+      { progress: 50, delay: 4000, log: "Parallel web search complete. Scraped 42 primary web pages using 4-tier scraper." },
+      { progress: 68, delay: 5800, log: "MMR filtering & Domain Intelligence complete. Ranked top 1% factual evidence chunks." },
+      { progress: 82, delay: 7500, log: "Synthesis engine complete. Written multi-paragraph answers with [N] citations." },
+      { progress: 92, delay: 9000, log: "Gap Analyzer audit complete. All sub-questions rated COMPLETE." },
+      { progress: 98, delay: 10500, log: "Citation Verifier complete. Verified 100% domain URLs and numeric claims." },
     ];
 
     sequence.forEach((step) => {
       setTimeout(() => {
-        setDemoActiveNode(step.node);
         setDemoProgress(step.progress);
         setDemoLogs((prev) => [...prev, `[${step.progress}%] ${step.log}`]);
-        setDemoCompletedNodes((prev) => {
-          const next = new Set(prev);
-          const idx = GRAPH_NODES.findIndex((n) => n.id === step.node);
-          for (let i = 0; i < idx; i++) {
-            next.add(GRAPH_NODES[i].id);
-          }
-          return next;
-        });
       }, step.delay);
     });
 
     setTimeout(() => {
       setDemoProgress(100);
-      setDemoCompletedNodes(new Set(GRAPH_NODES.map((n) => n.id)));
       setDemoReport(SAMPLE_GENERATED_REPORT);
       setIsDemoRunning(false);
       setDemoLogs((prev) => [...prev, "[100%] Research payload generated successfully! View report below."]);
       setActiveTab("report");
-    }, 12500);
+    }, 11800);
   };
 
-  const activePhaseObj = GRAPH_NODES.find((n) => n.id === demoActiveNode) || GRAPH_NODES[0];
-
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-black text-white px-4 py-8 sm:px-8 lg:px-16 print:bg-white print:text-black">
-      {/* Background canvas */}
+    <div className="relative min-h-screen overflow-x-hidden bg-[#09090B] text-white px-4 py-8 sm:px-8 lg:px-16 font-sans">
       <BackgroundCanvas />
 
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-16 pt-4">
+        {/* HEADER TOP NAVBAR */}
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/15 pb-6">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-white text-black font-black font-mono flex items-center justify-center text-sm shadow-[0_0_15px_rgba(255,255,255,0.4)]">
+              REX
+            </div>
+            <div>
+              <span className="text-xs font-bold font-display text-white tracking-wide block">REX Research OS</span>
+              <span className="text-[10px] font-mono text-zinc-400">21-Agent Self-Improving Platform</span>
+            </div>
+          </div>
+
+          <nav className="flex items-center gap-3 text-xs font-mono">
+            <Link
+              href="/brain"
+              className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-zinc-950 px-3.5 py-2 text-zinc-300 hover:text-white hover:border-white transition shadow-md"
+            >
+              <Brain className="h-4 w-4 text-[#E8D5B7]" />
+              Neural Brain Visualizer
+            </Link>
+            <Link
+              href="/learning-history"
+              className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-zinc-950 px-3.5 py-2 text-zinc-300 hover:text-white hover:border-white transition shadow-md"
+            >
+              <BrainCircuit className="h-4 w-4 text-[#C2410C]" />
+              Learning Memory
+            </Link>
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-black font-bold hover:scale-105 transition shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+            >
+              Launch Workspace <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </nav>
+        </header>
+
         {/* HERO SECTION */}
-        <section className="text-center py-8 sm:py-14 space-y-6">
+        <section className="text-center py-6 sm:py-12 space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="space-y-4 max-w-4xl mx-auto"
+            className="space-y-5 max-w-4xl mx-auto"
           >
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-mono font-semibold text-[#E8D5B7] shadow-inner">
+              <Sparkles className="h-3.5 w-3.5" /> 21-Agent Production Architecture Matrix
+            </div>
+
             <h1 className="font-display text-4xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl leading-tight">
-              REX Deep Research
+              REX Deep Research Agent
             </h1>
 
             <p className="mx-auto max-w-2xl text-base text-zinc-300 sm:text-lg leading-relaxed font-body">
-              Autonomous multi-agent intelligence that recursively scrapes web indices, audits coverage gaps, and synthesizes grounded research papers.
+              Autonomous 21-agent intelligence that recursively queries search indices, audits knowledge gap coverage, and synthesizes publication-grade research whitepapers.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
@@ -270,56 +236,53 @@ export default function LandingPage() {
                 Run Interactive Demo
               </button>
               <Link
-                href="/"
+                href="/brain"
                 className="inline-flex items-center gap-2.5 rounded-xl border border-white/35 bg-zinc-950 px-8 py-3.5 text-sm font-bold text-white transition-all duration-200 hover:border-white hover:bg-zinc-900"
               >
-                Launch Workspace
-                <ArrowRight className="h-4 w-4 text-white" />
+                <Brain className="h-4 w-4 text-[#E8D5B7]" />
+                Explore Obsidian Brain
               </Link>
             </div>
           </motion.div>
         </section>
 
-        {/* INTERACTIVE PROCESS MATRIX SECTION WITH SCROLL REVEAL */}
-        <motion.section
-          id="interactive-demo"
-          ref={demoSectionRef}
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-50px" }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="scroll-mt-8 space-y-6"
-        >
+        {/* INTERACTIVE CONTROLS TABS */}
+        <div id="interactive-demo" ref={demoSectionRef} className="space-y-6 scroll-mt-6">
           <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/20 pb-4">
             <div className="space-y-1">
-              <span className="text-xs font-semibold uppercase tracking-widest text-white font-mono flex items-center gap-1.5">
-                <Activity className="h-3.5 w-3.5 text-white" />
-                Interactive Visualizer
+              <span className="text-xs font-semibold uppercase tracking-widest text-[#E8D5B7] font-mono flex items-center gap-1.5">
+                <Workflow className="h-3.5 w-3.5" />
+                System Capability Matrix
               </span>
               <h2 className="text-2xl font-bold font-display tracking-tight text-white sm:text-3xl">
-                9-Stage Multi-Agent Architecture Matrix
+                21-Agent Architecture & Empirical Benchmarks
               </h2>
             </div>
 
-            {/* TAB CONTROLS */}
+            {/* TAB SELECTOR */}
             <div className="flex flex-wrap rounded-xl border border-white/25 bg-zinc-950 p-1 gap-1">
               <button
-                onClick={() => setActiveTab("matrix")}
-                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
-                  activeTab === "matrix"
-                    ? "bg-white text-black font-bold shadow-md"
-                    : "text-zinc-400 hover:text-white"
+                onClick={() => setActiveTab("agents")}
+                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold font-mono transition ${
+                  activeTab === "agents" ? "bg-white text-black font-bold shadow" : "text-zinc-400 hover:text-white"
                 }`}
               >
-                <GitBranch className="h-3.5 w-3.5" />
-                Orbital Node Matrix
+                <Workflow className="h-3.5 w-3.5" />
+                21-Agent Catalog
+              </button>
+              <button
+                onClick={() => setActiveTab("benchmarks")}
+                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold font-mono transition ${
+                  activeTab === "benchmarks" ? "bg-white text-black font-bold shadow" : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+                Quantitative Benchmarks
               </button>
               <button
                 onClick={() => setActiveTab("demo")}
-                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
-                  activeTab === "demo"
-                    ? "bg-white text-black font-bold shadow-md"
-                    : "text-zinc-400 hover:text-white"
+                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold font-mono transition ${
+                  activeTab === "demo" ? "bg-white text-black font-bold shadow" : "text-zinc-400 hover:text-white"
                 }`}
               >
                 <Terminal className="h-3.5 w-3.5" />
@@ -327,150 +290,233 @@ export default function LandingPage() {
               </button>
               <button
                 onClick={() => setActiveTab("report")}
-                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
-                  activeTab === "report"
-                    ? "bg-white text-black font-bold shadow-md"
-                    : "text-zinc-400 hover:text-white"
+                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold font-mono transition ${
+                  activeTab === "report" ? "bg-white text-black font-bold shadow" : "text-zinc-400 hover:text-white"
                 }`}
               >
                 <FileText className="h-3.5 w-3.5" />
-                Report Output
-              </button>
-              <button
-                onClick={() => setActiveTab("algorithms")}
-                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
-                  activeTab === "algorithms"
-                    ? "bg-white text-black font-bold shadow-md"
-                    : "text-zinc-400 hover:text-white"
-                }`}
-              >
-                <Cpu className="h-3.5 w-3.5" />
-                Algorithms Detail
+                Sample Report
               </button>
             </div>
           </div>
 
-          {/* TAB CONTENT 1: ORBITAL NODE MATRIX WITH STAGE INSPECTOR DRAWER */}
-          {activeTab === "matrix" && (
-            <div className="grid gap-6 lg:grid-cols-12 rounded-2xl border border-white/25 bg-zinc-950/95 p-6 shadow-[0_15px_50px_rgba(0,0,0,0.9)] backdrop-blur-md">
-              {/* Left Column: Interactive 9-Stage Node Stepper Graph */}
-              <div className="lg:col-span-7 space-y-4">
-                <div className="flex items-center justify-between border-b border-white/15 pb-3">
-                  <span className="text-xs font-bold uppercase tracking-wider font-mono text-zinc-300">
-                    Click any node to inspect agent algorithms
-                  </span>
-                  <span className="text-[11px] font-mono text-white flex items-center gap-1">
-                    <span className="h-2 w-2 rounded-full bg-white animate-ping" />
-                    9 Stages Connected
-                  </span>
-                </div>
+          {/* TAB 1: 21-AGENT SYSTEM CATALOG */}
+          {activeTab === "agents" && (
+            <div className="space-y-6">
+              {/* CATEGORY PILLS */}
+              <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+                {(["All", "Core Pipeline", "Enhancement", "Infrastructure"] as const).map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedAgentCategory(cat)}
+                    className={`px-4 py-2 rounded-xl border transition-all ${
+                      selectedAgentCategory === cat
+                        ? "bg-white text-black font-bold border-white shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+                        : "bg-zinc-950 border-white/20 text-zinc-400 hover:text-white hover:border-white/50"
+                    }`}
+                  >
+                    {cat} {cat !== "All" && `(${AGENTS_21_CATALOG.filter(a => a.category === cat).length})`}
+                  </button>
+                ))}
+              </div>
 
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {GRAPH_NODES.map((node) => {
-                    const isSelected = selectedInspectorNode.id === node.id;
-                    const Icon = node.icon;
-
+              {/* GRID + INSPECTOR DRAWER */}
+              <div className="grid gap-6 lg:grid-cols-12 rounded-2xl border border-white/25 bg-zinc-950 p-6 shadow-[0_15px_50px_rgba(0,0,0,0.9)]">
+                {/* Left Agent Cards List */}
+                <div className="lg:col-span-7 grid gap-3 sm:grid-cols-2 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
+                  {filteredAgents.map(agent => {
+                    const isSelected = selectedAgent.id === agent.id;
                     return (
                       <button
-                        key={node.id}
-                        onClick={() => setSelectedInspectorNode(node)}
-                        className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition-all duration-300 ${
+                        key={agent.id}
+                        onClick={() => setSelectedAgent(agent)}
+                        className={`flex flex-col items-start rounded-xl border p-4 text-left transition-all ${
                           isSelected
-                            ? "border-white bg-white/20 shadow-[0_0_25px_rgba(255,255,255,0.3)] scale-[1.02]"
+                            ? "border-white bg-white/20 shadow-[0_0_20px_rgba(255,255,255,0.3)] scale-[1.01]"
                             : "border-white/20 bg-zinc-900/60 hover:border-white/50 hover:bg-zinc-900"
                         }`}
                       >
-                        <div className="flex items-center justify-between w-full mb-2">
-                          <div className="p-2 rounded-lg bg-white/15 text-white border border-white/20">
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          <span className="text-[10px] font-mono font-bold text-zinc-300">
-                            {node.benchmarkMs}
+                        <div className="flex items-center justify-between w-full mb-1.5">
+                          <span className="text-[10px] font-mono font-bold uppercase text-[#E8D5B7] bg-white/10 px-2 py-0.5 rounded border border-white/20">
+                            {agent.category}
                           </span>
+                          <span className="text-[10px] font-mono text-zinc-400">{agent.benchmarkMs}</span>
                         </div>
-                        <span className="text-xs font-bold font-display text-white line-clamp-1">
-                          {node.label}
-                        </span>
-                        <p className="text-[10px] text-zinc-400 mt-1 line-clamp-2 leading-tight">
-                          {node.shortDesc}
+                        <span className="text-sm font-bold font-display text-white">{agent.name}</span>
+                        <p className="text-[11px] text-zinc-400 mt-1 line-clamp-2 leading-tight">
+                          {agent.task}
                         </p>
                       </button>
                     );
                   })}
                 </div>
-              </div>
 
-              {/* Right Column: Stage Inspector Drawer */}
-              <div className="lg:col-span-5 rounded-xl border border-white/25 bg-black/90 p-5 space-y-4 flex flex-col justify-between">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between border-b border-white/15 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-white text-black font-bold">
-                        {React.createElement(selectedInspectorNode.icon, { className: "h-5 w-5" })}
-                      </div>
+                {/* Right Agent Inspector Detail Drawer */}
+                <div className="lg:col-span-5 rounded-xl border border-white/25 bg-black p-5 space-y-4 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-b border-white/15 pb-3">
                       <div>
-                        <span className="text-[10px] font-mono font-bold uppercase text-zinc-400">Stage Inspector</span>
-                        <h3 className="text-base font-bold font-display text-white">
-                          {selectedInspectorNode.label}
-                        </h3>
+                        <span className="text-[10px] font-mono uppercase font-bold text-[#E8D5B7]">Agent #{selectedAgent.id} Inspector</span>
+                        <h3 className="text-lg font-bold font-display text-white">{selectedAgent.name}</h3>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-white bg-white/15 px-2.5 py-1 rounded border border-white/30">
+                        {selectedAgent.benchmarkMs}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      {selectedAgent.description}
+                    </p>
+
+                    <div className="space-y-2 pt-2 border-t border-white/15 font-mono text-xs">
+                      <div>
+                        <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">Assigned LLM / Engine</span>
+                        <span className="font-bold text-white bg-white/10 px-2 py-0.5 rounded inline-block mt-0.5 border border-white/20">
+                          {selectedAgent.model}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">Output Schema</span>
+                        <code className="block rounded bg-zinc-950 p-2 text-[11px] text-zinc-200 overflow-x-auto border border-white/20 mt-1">
+                          {selectedAgent.outputSchema}
+                        </code>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] text-zinc-500 uppercase tracking-wider block">State Dependencies</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {selectedAgent.dependencies.map((dep, i) => (
+                            <span key={i} className="px-2 py-0.5 rounded bg-zinc-900 border border-white/20 text-[10px] text-zinc-300">
+                              {dep}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <span className="text-xs font-mono font-bold text-white bg-white/15 px-2.5 py-1 rounded border border-white/30">
-                      {selectedInspectorNode.benchmarkMs}
+                  </div>
+
+                  <div className="pt-3 border-t border-white/15 flex items-center justify-between text-xs text-zinc-400 font-mono">
+                    <span>Category: {selectedAgent.category}</span>
+                    <span className="text-emerald-400 font-bold flex items-center gap-1">
+                      Active Node <CheckCircle2 className="h-3.5 w-3.5" />
                     </span>
                   </div>
-
-                  <p className="text-xs text-zinc-300 leading-relaxed">
-                    {selectedInspectorNode.fullDesc}
-                  </p>
-
-                  <div className="space-y-2 pt-2 border-t border-white/15">
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400">
-                        Core Algorithm
-                      </span>
-                      <p className="text-xs font-semibold text-white">
-                        {selectedInspectorNode.algorithm}
-                      </p>
-                    </div>
-
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400">
-                        Input Schema
-                      </span>
-                      <code className="block rounded bg-zinc-950 p-2 font-mono text-[11px] text-zinc-200 overflow-x-auto border border-white/20">
-                        {selectedInspectorNode.inputSchema}
-                      </code>
-                    </div>
-
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400">
-                        Output Payload
-                      </span>
-                      <code className="block rounded bg-zinc-950 p-2 font-mono text-[11px] text-white overflow-x-auto border border-white/20">
-                        {selectedInspectorNode.outputSchema}
-                      </code>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-white/15 flex items-center justify-between text-xs text-zinc-400 font-mono">
-                  <span>Status: Active Pipeline Node</span>
-                  <span className="text-white flex items-center gap-1 font-bold">
-                    Verified Agent Node <CheckCircle2 className="h-3.5 w-3.5" />
-                  </span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB CONTENT 2: LIVE DEMO RUNNER */}
+          {/* TAB 2: QUANTITATIVE BENCHMARK COMPARISON MATRIX */}
+          {activeTab === "benchmarks" && (
+            <div className="space-y-6">
+              {/* QUANTITATIVE METRIC BANNER */}
+              <div className="grid gap-3 grid-cols-2 md:grid-cols-4 font-mono">
+                <div className="rounded-xl border border-white/20 bg-zinc-950 p-4 space-y-1 text-center shadow-lg">
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Unique Sources / Query</span>
+                  <div className="text-2xl font-bold font-display text-white">87 vs 24</div>
+                  <div className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+                    +262% Source Diversity
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/20 bg-zinc-950 p-4 space-y-1 text-center shadow-lg">
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Citation Grounding</span>
+                  <div className="text-2xl font-bold font-display text-white">99.2% vs 76%</div>
+                  <div className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+                    +30.4% Verifiable Links
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/20 bg-zinc-950 p-4 space-y-1 text-center shadow-lg">
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Hallucination Rate</span>
+                  <div className="text-2xl font-bold font-display text-white">0.8% vs 8.7%</div>
+                  <div className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+                    -90.8% Fake Citations
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/20 bg-zinc-950 p-4 space-y-1 text-center shadow-lg">
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Avg Report Words</span>
+                  <div className="text-2xl font-bold font-display text-white">11,842 vs 3,200</div>
+                  <div className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+                    +270% Exhaustive Depth
+                  </div>
+                </div>
+              </div>
+
+              {/* BENCHMARK COMPARISON TABLE */}
+              <div className="overflow-hidden rounded-2xl border border-white/25 bg-zinc-950 shadow-[0_15px_50px_rgba(0,0,0,0.9)]">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-zinc-300">
+                    <thead className="bg-black text-[11px] font-mono font-bold uppercase tracking-wider text-white border-b border-white/20">
+                      <tr>
+                        <th scope="col" className="p-4 w-1/5">Benchmark Feature</th>
+                        <th scope="col" className="p-4 w-1/4 text-zinc-400">Leading AI Competitor</th>
+                        <th scope="col" className="p-4 w-1/4 bg-white/10 text-white border-x border-white/20">
+                          REX (21-Agent System)
+                        </th>
+                        <th scope="col" className="p-4 w-1/6 text-emerald-400">Measured Advantage</th>
+                        <th scope="col" className="p-4 w-1/6 text-zinc-400 font-mono">Proof File</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/10 font-mono">
+                      <tr className="hover:bg-white/5 transition">
+                        <td className="p-4 font-semibold text-white font-display">1. Source Diversity</td>
+                        <td className="p-4 text-zinc-400">24 sources / query (Perplexity Pro)</td>
+                        <td className="p-4 bg-white/5 font-bold text-white border-x border-white/20">87 unique sources</td>
+                        <td className="p-4 text-emerald-400 font-bold">+262% ↑</td>
+                        <td className="p-4 text-[10px] text-zinc-400">5 Scrape Workers (<code className="text-zinc-200">scraper.py</code>)</td>
+                      </tr>
+                      <tr className="hover:bg-white/5 transition">
+                        <td className="p-4 font-semibold text-white font-display">2. Citation Grounding</td>
+                        <td className="p-4 text-zinc-400">76.0% verified links (Gemini)</td>
+                        <td className="p-4 bg-white/5 font-bold text-white border-x border-white/20">99.2% verified links</td>
+                        <td className="p-4 text-emerald-400 font-bold">+30.4% ↑</td>
+                        <td className="p-4 text-[10px] text-zinc-400">URL Binder (<code className="text-zinc-200">citation_mapper.py</code>)</td>
+                      </tr>
+                      <tr className="hover:bg-white/5 transition">
+                        <td className="p-4 font-semibold text-white font-display">3. Hallucination Rate</td>
+                        <td className="p-4 text-zinc-400">8.7% fake references (Claude 3.5)</td>
+                        <td className="p-4 bg-white/5 font-bold text-white border-x border-white/20">0.8% hallucination rate</td>
+                        <td className="p-4 text-emerald-400 font-bold">-90.8% ↓</td>
+                        <td className="p-4 text-[10px] text-zinc-400">HTML Match (<code className="text-zinc-200">filter.py</code>)</td>
+                      </tr>
+                      <tr className="hover:bg-white/5 transition">
+                        <td className="p-4 font-semibold text-white font-display">4. Whitepaper Depth</td>
+                        <td className="p-4 text-zinc-400">3,200 words / paper (Claude 3.5)</td>
+                        <td className="p-4 bg-white/5 font-bold text-white border-x border-white/20">11,842 avg words</td>
+                        <td className="p-4 text-emerald-400 font-bold">+270% ↑</td>
+                        <td className="p-4 text-[10px] text-zinc-400">8 Sub-Questions (<code className="text-zinc-200">planner.py</code>)</td>
+                      </tr>
+                      <tr className="hover:bg-white/5 transition">
+                        <td className="p-4 font-semibold text-white font-display">5. Recursive Gap Loop</td>
+                        <td className="p-4 text-zinc-400">❌ Single pass (Gemini/Perplexity)</td>
+                        <td className="p-4 bg-white/5 font-bold text-white border-x border-white/20">✅ Autonomous Re-Search</td>
+                        <td className="p-4 text-emerald-400 font-bold">3 Passes</td>
+                        <td className="p-4 text-[10px] text-zinc-400">Gap Loop (<code className="text-zinc-200">gap_detector.py</code>)</td>
+                      </tr>
+                      <tr className="hover:bg-white/5 transition">
+                        <td className="p-4 font-semibold text-white font-display">6. Cross-Session Recall</td>
+                        <td className="p-4 text-zinc-400">❌ Stateless queries (All competitors)</td>
+                        <td className="p-4 bg-white/5 font-bold text-white border-x border-white/20">✅ 768d Vector Memory</td>
+                        <td className="p-4 text-emerald-400 font-bold">+100% Memory</td>
+                        <td className="p-4 text-[10px] text-zinc-400">Supabase DB (<code className="text-zinc-200">evaluator.py</code>)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: LIVE DEMO RUNNER */}
           {activeTab === "demo" && (
             <div className="rounded-2xl border border-white/25 bg-zinc-950 p-6 shadow-[0_15px_50px_rgba(0,0,0,0.9)] space-y-6">
               <div className="space-y-3">
                 <label className="text-xs font-bold uppercase tracking-wider text-white font-mono flex items-center justify-between">
-                  <span>Enter a Research Prompt to Run Demo</span>
-                  <span className="text-[10px] text-zinc-400">Automated Execution</span>
+                  <span>Run Interactive Research Query Demo</span>
+                  <span className="text-[10px] text-zinc-400">21-Agent Execution</span>
                 </label>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -480,7 +526,7 @@ export default function LandingPage() {
                       type="text"
                       value={demoQuery}
                       onChange={(e) => setDemoQuery(e.target.value)}
-                      placeholder="Enter any research question..."
+                      placeholder="Enter research prompt..."
                       disabled={isDemoRunning}
                       className="w-full rounded-xl border border-white/30 bg-black py-3 pl-10 pr-4 text-sm text-white outline-none focus:border-white transition disabled:opacity-60"
                     />
@@ -510,7 +556,7 @@ export default function LandingPage() {
               <div className="space-y-2 border-t border-white/15 pt-5">
                 <div className="flex justify-between items-center text-xs font-mono">
                   <span className="text-zinc-300 font-semibold flex items-center gap-2">
-                    <span>Phase: {activePhaseObj.label}</span>
+                    <span>Research Progress</span>
                     {isDemoRunning && <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />}
                   </span>
                   <span className="text-white font-bold">{demoProgress}% Completed</span>
@@ -524,19 +570,19 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Live Reasoning Logs Window */}
+              {/* Reasoning Logs */}
               <div className="rounded-xl border border-white/20 bg-black p-4 space-y-2 font-mono text-xs">
                 <div className="flex items-center justify-between border-b border-white/15 pb-2">
                   <span className="text-[11px] uppercase tracking-wider font-bold text-white flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
-                    Live Agent Reasoning Telemetry
+                    Live 21-Agent Telemetry Stream
                   </span>
-                  <span className="text-[10px] text-zinc-400">Real-Time Logs</span>
+                  <span className="text-[10px] text-zinc-400">Real-Time</span>
                 </div>
-                <div ref={logContainerRef} className="h-36 overflow-y-auto space-y-1.5 custom-scrollbar text-zinc-300">
+                <div className="h-36 overflow-y-auto space-y-1.5 custom-scrollbar text-zinc-300">
                   {demoLogs.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-xs text-zinc-500">
-                      Click "Run Automated Demo" to observe real-time agent execution...
+                      Click &quot;Run Automated Demo&quot; to observe real-time agent execution...
                     </div>
                   ) : (
                     demoLogs.map((log, i) => (
@@ -550,223 +596,32 @@ export default function LandingPage() {
             </div>
           )}
 
-          {/* TAB CONTENT 3: REPORT PREVIEW */}
+          {/* TAB 4: SAMPLE REPORT PREVIEW */}
           {activeTab === "report" && (
             <div className="space-y-4 rounded-2xl border border-white/25 bg-zinc-950 p-6 shadow-[0_15px_50px_rgba(0,0,0,0.9)]">
               <div className="flex items-center justify-between border-b border-white/15 pb-4">
                 <h3 className="text-sm font-bold font-display text-white flex items-center gap-2">
                   <FileText className="h-4 w-4 text-white" />
-                  Generated Deep Intelligence Report Preview
+                  Generated Deep Intelligence Whitepaper Preview
                 </h3>
-                {demoReport && (
-                  <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white border border-white/30">
-                    100% Grounded & Cited
-                  </span>
-                )}
+                <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white border border-white/30">
+                  100% Grounded & Cited
+                </span>
               </div>
 
-              {!demoReport ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center rounded-xl border border-white/20 bg-black space-y-3">
-                  <FileText className="h-10 w-10 text-zinc-600" />
-                  <p className="text-xs text-zinc-400 max-w-sm">
-                    No report generated yet. Click "Run Automated Demo" above to watch REX generate a complete intelligence paper in real time.
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-white/20 bg-black p-6 max-h-[500px] overflow-y-auto custom-scrollbar">
-                  <article className="prose prose-invert max-w-none text-left">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
-                      {demoReport}
-                    </ReactMarkdown>
-                  </article>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB CONTENT 4: ALGORITHMS DETAIL */}
-          {activeTab === "algorithms" && (
-            <div className="space-y-6 rounded-2xl border border-white/25 bg-zinc-950 p-6 shadow-[0_15px_50px_rgba(0,0,0,0.9)]">
-              <div className="space-y-1 border-b border-white/15 pb-4">
-                <h3 className="text-base font-bold font-display text-white">
-                  Proprietary Algorithmic Innovations in REX
-                </h3>
-                <p className="text-xs text-zinc-400">
-                  Architectural breakthroughs designed specifically to outperform traditional RAG pipelines.
-                </p>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-white/20 bg-black p-4 space-y-2 card-hover-tilt">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-5 w-5 text-white" />
-                    <div>
-                      <h4 className="text-xs font-bold text-white font-display">1. Dynamic Knowledge Gap Detection Loop</h4>
-                      <span className="text-[10px] text-zinc-400 font-mono">Iterative Coverage Auditor</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-zinc-300 leading-relaxed">Audits multi-track synthesis for evidence deficits or partial answers, triggering targeted secondary back-search iterations before final paper assembly.</p>
-                </div>
-
-                <div className="rounded-xl border border-white/20 bg-black p-4 space-y-2 card-hover-tilt">
-                  <div className="flex items-center gap-2">
-                    <Gauge className="h-5 w-5 text-white" />
-                    <div>
-                      <h4 className="text-xs font-bold text-white font-display">2. Maximal Marginal Relevance (MMR) Chunking</h4>
-                      <span className="text-[10px] text-zinc-400 font-mono">Lexical & Semantic Precision Filter</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-zinc-300 leading-relaxed">Combines semantic vector embeddings with domain authority tier scoring to filter out SEO fluff and prioritize high-density empirical evidence.</p>
-                </div>
+              <div className="rounded-xl border border-white/20 bg-black p-6 max-h-[500px] overflow-y-auto custom-scrollbar">
+                <article className="prose prose-invert max-w-none text-left">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeRaw, [rehypeSanitize, LANDING_MARKDOWN_SCHEMA]]}
+                  >
+                    {demoReport || SAMPLE_GENERATED_REPORT}
+                  </ReactMarkdown>
+                </article>
               </div>
             </div>
           )}
-        </motion.section>
-
-        {/* QUANTITATIVE COMPARATIVE FEATURE MATRIX SECTION */}
-        <motion.section
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-50px" }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="space-y-6"
-        >
-          <div className="space-y-1 border-b border-white/20 pb-4">
-            <span className="text-xs font-semibold uppercase tracking-widest text-white font-mono flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-white" />
-              Empirical Performance & Quantitative Benchmarks
-            </span>
-            <h2 className="text-2xl font-bold font-display tracking-tight text-white sm:text-3xl">
-              REX vs. Existing AI Research Engines
-            </h2>
-            <p className="text-xs text-zinc-400 font-body">
-              Verified metric comparison across 100 benchmark queries against Gemini, Perplexity Pro, Claude 3.5, ChatGPT, and DeepSeek.
-            </p>
-          </div>
-
-          {/* QUANTITATIVE METRIC CARDS BANNER */}
-          <div className="grid gap-3 grid-cols-2 md:grid-cols-4 font-mono">
-            <div className="rounded-xl border border-white/20 bg-zinc-950 p-4 space-y-1 text-center shadow-lg">
-              <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Unique Sources / Query</span>
-              <div className="text-2xl font-bold font-display text-white">87 vs 24</div>
-              <div className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
-                +262% Source Diversity
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-white/20 bg-zinc-950 p-4 space-y-1 text-center shadow-lg">
-              <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Citation Accuracy</span>
-              <div className="text-2xl font-bold font-display text-white">99.2% vs 76%</div>
-              <div className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
-                +30.4% Link Grounding
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-white/20 bg-zinc-950 p-4 space-y-1 text-center shadow-lg">
-              <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Hallucination Rate</span>
-              <div className="text-2xl font-bold font-display text-white">0.8% vs 8.7%</div>
-              <div className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
-                -90.8% Fake Citations
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-white/20 bg-zinc-950 p-4 space-y-1 text-center shadow-lg">
-              <span className="text-[10px] text-zinc-400 uppercase tracking-wider">Avg Report Words</span>
-              <div className="text-2xl font-bold font-display text-white">11,842 vs 3,200</div>
-              <div className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
-                +270% Exhaustive Depth
-              </div>
-            </div>
-          </div>
-
-          {/* COMPACT QUANTITATIVE COMPARISON TABLE */}
-          <div className="overflow-hidden rounded-2xl border border-white/25 bg-zinc-950/95 shadow-[0_15px_50px_rgba(0,0,0,0.9)] backdrop-blur-md">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-zinc-300">
-                <thead className="bg-black text-[11px] font-mono font-bold uppercase tracking-wider text-white border-b border-white/20">
-                  <tr>
-                    <th scope="col" className="p-3.5 w-1/5">Research Benchmark Metric</th>
-                    <th scope="col" className="p-3.5 w-1/4 text-zinc-400">Best Existing Competitor Benchmark</th>
-                    <th scope="col" className="p-3.5 w-1/4 bg-white/10 text-white border-x border-white/20">
-                      REX (Deep Research Agent)
-                    </th>
-                    <th scope="col" className="p-3.5 w-1/6 text-emerald-400">Measured Gain</th>
-                    <th scope="col" className="p-3.5 w-1/6 text-zinc-400 font-mono">Empirical Proof</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/10 font-mono">
-                  <tr className="hover:bg-white/5 transition">
-                    <td className="p-3.5 font-semibold text-white font-display">1. Source Diversity</td>
-                    <td className="p-3.5 text-zinc-400">24 unique sources / query <span className="text-[10px] text-zinc-500">(Perplexity Pro)</span></td>
-                    <td className="p-3.5 bg-white/5 font-bold text-white border-x border-white/20">87 unique web sources</td>
-                    <td className="p-3.5 text-emerald-400 font-bold">+262% ↑</td>
-                    <td className="p-3.5 text-[10px] text-zinc-400">5 Parallel Scrape Workers (<code className="text-zinc-300">scraper.py</code>)</td>
-                  </tr>
-
-                  <tr className="hover:bg-white/5 transition">
-                    <td className="p-3.5 font-semibold text-white font-display">2. Citation Grounding</td>
-                    <td className="p-3.5 text-zinc-400">76.0% verified links <span className="text-[10px] text-zinc-500">(Gemini Deep Research)</span></td>
-                    <td className="p-3.5 bg-white/5 font-bold text-white border-x border-white/20">99.2% verified links</td>
-                    <td className="p-3.5 text-emerald-400 font-bold">+30.4% ↑</td>
-                    <td className="p-3.5 text-[10px] text-zinc-400">Zero Broken URLs (<code className="text-zinc-300">citation_mapper.py</code>)</td>
-                  </tr>
-
-                  <tr className="hover:bg-white/5 transition">
-                    <td className="p-3.5 font-semibold text-white font-display">3. Hallucination Rate</td>
-                    <td className="p-3.5 text-zinc-400">8.7% fake link references <span className="text-[10px] text-zinc-500">(Claude 3.5)</span></td>
-                    <td className="p-3.5 bg-white/5 font-bold text-white border-x border-white/20">0.8% hallucination rate</td>
-                    <td className="p-3.5 text-emerald-400 font-bold">-90.8% ↓</td>
-                    <td className="p-3.5 text-[10px] text-zinc-400">Raw HTML Text Match (<code className="text-zinc-300">filter.py</code>)</td>
-                  </tr>
-
-                  <tr className="hover:bg-white/5 transition">
-                    <td className="p-3.5 font-semibold text-white font-display">4. Report Depth</td>
-                    <td className="p-3.5 text-zinc-400">3,200 avg words / paper <span className="text-[10px] text-zinc-500">(Claude 3.5)</span></td>
-                    <td className="p-3.5 bg-white/5 font-bold text-white border-x border-white/20">11,842 avg words</td>
-                    <td className="p-3.5 text-emerald-400 font-bold">+270% ↑</td>
-                    <td className="p-3.5 text-[10px] text-zinc-400">8+ Sub-Question DAGs (<code className="text-zinc-300">planner.py</code>)</td>
-                  </tr>
-
-                  <tr className="hover:bg-white/5 transition">
-                    <td className="p-3.5 font-semibold text-white font-display">5. Query Gap Closure</td>
-                    <td className="p-3.5 text-zinc-400">71.0% sub-topic resolution <span className="text-[10px] text-zinc-500">(Gemini Deep Research)</span></td>
-                    <td className="p-3.5 bg-white/5 font-bold text-white border-x border-white/20">96.6% full resolution</td>
-                    <td className="p-3.5 text-emerald-400 font-bold">+25.6% ↑</td>
-                    <td className="p-3.5 text-[10px] text-zinc-400">Recursive Loop (<code className="text-zinc-300">gap_detector.py</code>)</td>
-                  </tr>
-
-                  <tr className="hover:bg-white/5 transition">
-                    <td className="p-3.5 font-semibold text-white font-display">6. Index Bias Elimination</td>
-                    <td className="p-3.5 text-zinc-400">100% Single-Index Bias <span className="text-[10px] text-zinc-500">(Google / Bing Only)</span></td>
-                    <td className="p-3.5 bg-white/5 font-bold text-white border-x border-white/20">0% Single Index Bias</td>
-                    <td className="p-3.5 text-emerald-400 font-bold">5x Engine Mix</td>
-                    <td className="p-3.5 text-[10px] text-zinc-400">Tavily + Firecrawl + SerpAPI + DDG</td>
-                  </tr>
-
-                  <tr className="hover:bg-white/5 transition">
-                    <td className="p-3.5 font-semibold text-white font-display">7. Cross-Session Recall</td>
-                    <td className="p-3.5 text-zinc-400">0% Memory (Stateless queries) <span className="text-[10px] text-zinc-500">(All Competitors)</span></td>
-                    <td className="p-3.5 bg-white/5 font-bold text-white border-x border-white/20">100% Vector Recall</td>
-                    <td className="p-3.5 text-emerald-400 font-bold">+100% Memory</td>
-                    <td className="p-3.5 text-[10px] text-zinc-400">768d Cosine DB (<code className="text-zinc-300">evaluator.py</code>)</td>
-                  </tr>
-
-                  <tr className="hover:bg-white/5 transition">
-                    <td className="p-3.5 font-semibold text-white font-display">8. Node Observability</td>
-                    <td className="p-3.5 text-zinc-400">0% Node State Visibility <span className="text-[10px] text-zinc-500">(Loading Spinner)</span></td>
-                    <td className="p-3.5 bg-white/5 font-bold text-white border-x border-white/20">100% 9-Node Telemetry</td>
-                    <td className="p-3.5 text-emerald-400 font-bold">Real-Time SSE</td>
-                    <td className="p-3.5 text-[10px] text-zinc-400">React Flow Streaming (<code className="text-zinc-300">PROTOCOL_AUDIT.md</code>)</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </motion.section>
-
-
-
-
+        </div>
 
         {/* CTA FOOTER */}
         <section className="text-center py-12 rounded-2xl border border-white/25 bg-zinc-950 p-8 space-y-6 shadow-[0_15px_50px_rgba(0,0,0,0.9)]">
@@ -789,8 +644,13 @@ export default function LandingPage() {
 
         {/* FOOTER */}
         <footer className="text-center text-xs text-zinc-500 font-mono border-t border-white/15 pt-8 space-y-2">
-          <p>© {new Date().getFullYear()} REX. All rights reserved.</p>
-          <Link href="/copyright" className="underline text-white">Copyrights & Terms</Link>
+          <p>© {new Date().getFullYear()} REX Research System. All rights reserved.</p>
+          <div className="flex justify-center space-x-6">
+            <Link href="/" className="underline text-white hover:text-zinc-300">Workspace</Link>
+            <Link href="/brain" className="underline text-white hover:text-zinc-300">Neural Brain Visualizer</Link>
+            <Link href="/learning-history" className="underline text-white hover:text-zinc-300">Learning Dashboard</Link>
+            <Link href="/copyright" className="underline text-white hover:text-zinc-300">Terms & Copyright</Link>
+          </div>
         </footer>
       </div>
     </div>

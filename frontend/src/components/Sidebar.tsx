@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PanelLeftClose, PanelLeftOpen, Search, History, BrainCircuit, Sparkles } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Search, History, BrainCircuit, Sparkles, Brain } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,9 +11,10 @@ export default function Sidebar() {
 
   const navItems = [
     { name: "New Research", href: "/", icon: Search, shortcut: "⌘1" },
-    { name: "Research History", href: "/history", icon: History, shortcut: "⌘2" },
+    { name: "Neural Brain", href: "/brain", icon: Brain, shortcut: "⌘2" },
     { name: "Learning Memory", href: "/learning-history", icon: BrainCircuit, shortcut: "⌘3" },
-    { name: "Landing Architecture", href: "/landing-page", icon: Sparkles, shortcut: "⌘4" },
+    { name: "Platform Benchmarks", href: "/landing-page", icon: Sparkles, shortcut: "⌘4" },
+    { name: "Research History", href: "/history", icon: History, shortcut: "⌘5" },
   ];
 
   return (

@@ -158,31 +158,48 @@ def _pw_available() -> bool:
         return False
     return True
 
-def scrape_with_playwright(url: str, timeout_ms: int = 4000) -> str:
+def scrape_with_playwright(url: str, timeout_ms: int = 2500) -> str:
     """Tier 3: Headless Playwright browser fallback for JS-rendered pages."""
     if not _pw_available():
         return ""
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=True, args=["--disable-blink-features=AutomationControlled"])
             try:
                 context = browser.new_context(
                     viewport={"width": 1280, "height": 800},
-                    user_agent=BROWSER_HEADERS["User-Agent"]
+                    user_agent=BROWSER_HEADERS["User-Agent"],
+                    ignore_https_errors=True,
                 )
                 page = context.new_page()
-                page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2,ico}", lambda route: route.abort())
+                # Block heavy resources to speed up loading
+                page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2,ico,font}", lambda route: route.abort())
                 try:
-                    page.goto(url, timeout=timeout_ms, wait_until="domcontentloaded")
+                    # Use faster wait condition
+                    page.goto(url, timeout=timeout_ms, wait_until="load")
                     html = page.content()
+                except Exception as e:
+                    # Fallback to whatever loaded
+                    try:
+                        html = page.content()
+                    except:
+                        html = ""
                 finally:
-                    context.close()
+                    try:
+                        context.close()
+                    except:
+                        pass
                 return html
+            except Exception as e:
+                print(f"Playwright browser error: {e}")
             finally:
-                browser.close()
+                try:
+                    browser.close()
+                except:
+                    pass
     except Exception as e:
         em = str(e)
-        print(f"Playwright scraping failed for {url}: {e}")
+        print(f"Playwright scraping failed for {url}: {type(e).__name__}")
     return ""
 
 
@@ -211,52 +228,76 @@ def clean_markdown_text(text: str) -> str:
     return '\n'.join(lines).strip()
 
 
-def scrape_url(url: str, timeout: int = 4, use_cache: bool = True) -> Tuple[str, Optional[str]]:
+def scrape_url(url: str, timeout: int = 5, use_cache: bool = True) -> Tuple[str, Optional[str]]:
     """
-    Main keyless entry point for URL scraping.
-    Standard Scraper: requests + Trafilatura / BeautifulSoup (~0.5s).
-    Playwright Fallback: invoked with 3s timeout if standard scraper returns < 300 chars or fails.
+    Main keyless entry point for URL scraping with fast failover.
+    Fast path: requests + Trafilatura / BeautifulSoup (~0.5s max)
+    Fallback: Jina Reader for markdown extraction (~1.5s)
+    Last resort: Playwright for JS-heavy pages (max 2.5s, then fail)
     """
     if not url or not url.startswith("http"):
         return url, None
 
+    # Check cache first
     if use_cache:
         cached = _get_cached_page(url)
         if cached:
             return url, cached
 
+    # Fast path: standard HTTP + parsing
     html_raw = None
     try:
-        resp = requests.get(url, headers=BROWSER_HEADERS, timeout=timeout, verify=False)
+        # Use shorter timeout for initial request
+        resp = requests.get(url, headers=BROWSER_HEADERS, timeout=min(timeout, 3), verify=False)
         if resp.status_code == 200 and len(resp.text) > 300:
             html_raw = resp.text
-    except Exception:
-        pass
-
-    # Tier 1: Trafilatura
+    except Exception as e:
+        print(f"Initial request failed for {url}: {type(e).__name__}")
+    
+    # Try extraction if we got HTML
     if html_raw:
-        res_tf = scrape_with_trafilatura(url, html_content=html_raw)
-        if res_tf and len(res_tf) >= 300:
-            _set_cached_page(url, res_tf)
-            return url, res_tf
-
+        # Tier 1: Trafilatura
+        try:
+            res_tf = scrape_with_trafilatura(url, html_content=html_raw)
+            if res_tf and len(res_tf) >= 300:
+                _set_cached_page(url, res_tf)
+                return url, res_tf
+        except Exception as e:
+            print(f"Trafilatura failed: {type(e).__name__}")
+        
         # Tier 2: BS4
-        res_bs4 = scrape_with_bs4(html_raw)
-        if res_bs4 and len(res_bs4) >= 300:
-            _set_cached_page(url, res_bs4)
-            return url, res_bs4
+        try:
+            res_bs4 = scrape_with_bs4(html_raw)
+            if res_bs4 and len(res_bs4) >= 300:
+                _set_cached_page(url, res_bs4)
+                return url, res_bs4
+        except Exception as e:
+            print(f"BS4 failed: {type(e).__name__}")
 
-    # Tier 3a: Jina Reader (keyless markdown conversion, very fast)
-    res_jina = scrape_with_jina(url)
-    if res_jina and len(res_jina) >= 200:
-        _set_cached_page(url, res_jina)
-        return url, res_jina
+    # Tier 3a: Jina Reader (fast, reliable keyless markdown)
+    try:
+        res_jina = scrape_with_jina(url, timeout=min(timeout, 5))
+        if res_jina and len(res_jina) >= 200:
+            _set_cached_page(url, res_jina)
+            return url, res_jina
+    except Exception as e:
+        print(f"Jina failed: {type(e).__name__}")
 
-    # Tier 3: Playwright Fallback (Max 3s render timeout)
-    res_pw = scrape_with_playwright(url, timeout_ms=3000)
-    if res_pw:
-        _set_cached_page(url, res_pw)
-        return url, res_pw
+    # Tier 3: Playwright Fallback (JS-heavy only, SHORT timeout)
+    try:
+        res_pw = scrape_with_playwright(url, timeout_ms=2000)  # 2 second max
+        if res_pw and len(res_pw) > 300:
+            try:
+                res_bs4 = scrape_with_bs4(res_pw)
+                if res_bs4 and len(res_bs4) >= 200:
+                    _set_cached_page(url, res_bs4)
+                    return url, res_bs4
+            except:
+                pass
+    except Exception as e:
+        print(f"Playwright failed: {type(e).__name__}")
 
+    # Return empty - page couldn't be scraped
     return url, None
+
 

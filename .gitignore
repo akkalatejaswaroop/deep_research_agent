@@ -15,6 +15,9 @@ __pycache__/
 *$py.class
 venv/
 env/
+.env
+.env.*
+!.env.example
 .env*.local
 .venv/
 *.db
@@ -38,3 +41,6 @@ test_*.txt
 
 # Local Netlify folder
 .netlify
+
+# Brain repository
+REX-Brain/

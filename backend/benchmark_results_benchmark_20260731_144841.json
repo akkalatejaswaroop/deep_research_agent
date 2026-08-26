@@ -1,0 +1,39 @@
+{
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "avg_scores": {},
+    "avg_overall": 6.5,
+    "avg_duration_ms": 500,
+    "avg_word_count": 1000,
+    "avg_sources": 5,
+    "avg_qa_issues": 0,
+    "total_qa_issues": 0,
+    "total_passed_qa": 8
+  },
+  "results": [
+    {
+      "success": true,
+      "benchmark_id": "t1",
+      "overall": 6.5,
+      "qa_issues": 0,
+      "word_count": 1000,
+      "sources": 5,
+      "duration_ms": 500,
+      "scores": {},
+      "query": "test",
+      "label": "test",
+      "timestamp": "now",
+      "sub_questions": 2,
+      "citation_count": 3,
+      "qa_passed": true,
+      "qa_issues_list": [],
+      "metrics": {},
+      "error": null,
+      "topic": "stable_technical"
+    }
+  ],
+  "config": {},
+  "timestamp": "now"
+}

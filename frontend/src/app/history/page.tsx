@@ -24,6 +24,7 @@ export default function HistoryPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -32,10 +33,13 @@ export default function HistoryPage() {
         const res = await fetch(`${apiBase}/api/v1/sessions`);
         if (res.ok) {
           const data = await res.json();
-          setSessions(data);
+          setSessions(Array.isArray(data) ? data : []);
+        } else {
+          setError(`Failed to load research history (HTTP ${res.status}). Please ensure the backend is running.`);
         }
       } catch (err) {
         console.error("Failed to fetch sessions", err);
+        setError("Failed to reach the backend. Please ensure the research server is running and try again.");
       } finally {
         setIsLoading(false);
       }
@@ -86,6 +90,16 @@ export default function HistoryPage() {
           <span className="w-9 h-9 rounded-full border-2 border-white/30 border-t-white animate-spin" />
           <p className="text-xs text-zinc-400 font-mono uppercase tracking-widest">Retrieving Historical Sessions...</p>
         </div>
+      ) : error ? (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="rounded-2xl border border-white/25 bg-zinc-950 p-12 text-center space-y-4 shadow-[0_15px_45px_rgba(0,0,0,0.9)]"
+        >
+          <Activity className="w-12 h-12 text-white/60 mx-auto" strokeWidth={1.5} />
+          <h3 className="text-base font-bold font-display text-white">Unable to Load Research History</h3>
+          <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">{error}</p>
+        </motion.div>
       ) : sessions.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}

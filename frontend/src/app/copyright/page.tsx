@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 /**
@@ -91,7 +92,7 @@ export default function CopyrightPage() {
           </p>
           <ul className="mt-2 list-disc list-inside space-y-2 text-sm">
             <li><strong>Title 17 of the United States Code (U.S. Copyright Act)</strong>: Protection against unauthorized reproduction, distribution, display, or creation of derivative works.</li>
-            <li><strong>The Berne Convention for the Protection of Literary and Artistic Works</strong>: Enforcing automatic, international protection of REX's creative elements across 180+ member nations.</li>
+            <li><strong>The Berne Convention for the Protection of Literary and Artistic Works</strong>: Enforcing automatic, international protection of REX&apos;s creative elements across 180+ member nations.</li>
             <li><strong>Digital Millennium Copyright Act (DMCA)</strong>: Immediate enforcement procedures and penalties for circumventing access control systems or copying online digital content without proper authorization.</li>
           </ul>
           <p className="mt-3 text-sm leading-relaxed text-[var(--accent-ember)] font-medium">
@@ -116,12 +117,12 @@ export default function CopyrightPage() {
           </p>
         </section>
         <section className="text-center pt-4">
-          <a
+          <Link
             href="/"
             className="inline-block rounded-xl bg-[var(--brand-primary)] px-6 py-3 text-sm font-bold text-[var(--background)] transition-all duration-200 hover:scale-105"
           >
             Return to Home
-          </a>
+          </Link>
         </section>
       </motion.article>
     </section>

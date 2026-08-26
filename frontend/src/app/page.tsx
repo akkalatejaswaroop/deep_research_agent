@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import {
   CheckCircle2,
   Download,
@@ -14,15 +13,129 @@ import {
   RefreshCw,
   Loader2,
   ListTodo,
-  Sparkles,
   Terminal,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
+import { defaultSchema } from "hast-util-sanitize";
 import { AnimatePresence, motion } from "framer-motion";
 import MetricsDashboard from "@/components/MetricsDashboard";
+import MemoryHealthDashboard from "@/components/MemoryHealthDashboard";
 import BackgroundCanvas from "@/components/BackgroundCanvas";
+import Link from "next/link";
+import { Brain, BrainCircuit, Sparkles } from "lucide-react";
+
+// ============================================
+// SEO CONFIGURATION
+// ============================================
+
+// Base site metadata
+const SITE_TITLE = "REX — Recursive Exploration eXplorer";
+const SITE_DESCRIPTION = "AI-powered deep research multi-agent system that conducts comprehensive multi-source research with quality verification and citation tracking";
+const SITE_KEYWORDS = "deep research, AI research, multi-agent system, neuro-symbolic AI, quantum computing, automation, LLM research, quality verification, citation tracking";
+const SITE_AUTHOR = "REX Research System";
+const SITE_URL = process.env.NEXT_PUBLIC_URL || "http://localhost:3000";
+
+// Schema.org structured data types
+const RESEARCH_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": SITE_TITLE,
+  "description": SITE_DESCRIPTION,
+  "applicationCategory": "ResearchApplication",
+  "operatingSystem": "Web-based",
+  "softwareSourceCode": {
+    "@type": "SoftwareSourceCode",
+    "codeRepository": "https://github.com/deep-research-agent/deep-research-agent",
+  },
+  "version": "2.0.0",
+};
+
+// Open Graph / Social Media metadata
+const OG_METADATA = {
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  url: SITE_URL,
+  siteName: SITE_TITLE,
+  images: [
+    "/hero-image.png",
+  ],
+  type: "website",
+};
+
+// Twitter Card metadata
+const TWITTER_METADATA = {
+  card: "summary_large_image",
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  images: ["/hero-image.png"],
+  creator: "@rexiiresearch",
+};
+
+// ============================================
+// SEO Enhancement Components
+// ============================================
+
+// Helper to generate schema JSON-LD
+function generateSchemaJSONLD(schema: object) {
+  return (
+    <script
+      type="application/ld+json"
+      className="hidden"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+function generateOGMeta(og: typeof OG_METADATA) {
+  return (
+    <>
+      <meta property="og:title" content={og.title} />
+      <meta property="og:description" content={og.description} />
+      <meta property="og:url" content={og.url} />
+      <meta property="og:type" content={og.type} />
+      {og.images && og.images.length > 0 && (
+        <meta property="og:image" content={og.images[0]} />
+      )}
+      {og.images && og.images.length > 1 && (
+        <>
+          {og.images.map((img, i) => (
+            <meta key={i} property="og:image" content={img} />
+          ))}
+        </>
+      )}
+      <meta property="og:site_name" content={og.siteName} />
+    </>
+  );
+}
+
+function generateTwitterMeta(twitter: typeof TWITTER_METADATA) {
+  return (
+    <>
+      <meta name="twitter:card" content={twitter.card} />
+      <meta name="twitter:title" content={twitter.title} />
+      <meta name="twitter:description" content={twitter.description} />
+      {twitter.images && twitter.images.length > 0 && (
+        <meta name="twitter:image" content={twitter.images[0]} />
+      )}
+      <meta name="twitter:creator" content={twitter.creator} />
+    </>
+  );
+}
+
+// ============================================
+// Enhanced Home Component
+// ============================================
+
+const MARKDOWN_SCHEMA = {
+  ...defaultSchema,
+  attributes: {
+    ...(defaultSchema.attributes ?? {}),
+    a: [...(defaultSchema.attributes?.a ?? []), ["target"], ["rel"]],
+  },
+};
 
 const RESEARCH_PHASES = [
   { id: "planner", label: "Planning", desc: "Decomposing query into 8+ analytical sub-questions" },
@@ -36,37 +149,21 @@ const RESEARCH_PHASES = [
   { id: "evaluator", label: "Scoring", desc: "Evaluating report quality metrics & extracting lessons" },
 ];
 
-const PROGRESS_FLOORS: Record<string, number> = {
-  planner: 10,
-  memory_retrieval: 20,
-  searcher: 35,
-  filter: 50,
-  synthesis: 65,
-  gap_detector: 78,
-  citation_mapper: 88,
-  report_node_id: 94,
-  evaluator: 98,
+const PHASE_BOUNDS: Record<string, { floor: number; ceil: number }> = {
+  planner: { floor: 0, ceil: 19 },
+  memory_retrieval: { floor: 20, ceil: 34 },
+  searcher: { floor: 35, ceil: 49 },
+  filter: { floor: 50, ceil: 64 },
+  synthesis: { floor: 65, ceil: 77 },
+  gap_detector: { floor: 78, ceil: 87 },
+  citation_mapper: { floor: 88, ceil: 93 },
+  report_node_id: { floor: 94, ceil: 97 },
+  evaluator: { floor: 98, ceil: 99 },
 };
 
-const DYNAMIC_EMERGING_TOPICS = [
-  "Impact of Next-Gen Quantum Key Distribution on Global Cybersecurity Networks",
-  "Autonomous AI Agents in High-Frequency Trading & Market Stability",
-  "Solid-State Electrolyte Battery Commercialization Milestones in 2026",
-  "CRISPR-Cas13 RNA Editing Advances for Viral Infection Neutralization",
-  "Generative AI Architectures for Synthetic Biology and Enzyme Design",
-  "Fusion Energy Tokamak Plasma Confinement Breakthroughs",
-  "Neuromorphic Computing Chips in Edge AI and Robotics",
-  "Post-Quantum Cryptography Migration Roadmaps for Financial Infrastructure",
-  "Perovskite-Silicon Tandem Solar Cell Efficiency Records",
-  "Spaceborne Optical Laser Communications for Satellite Constellations",
-  "Sub-1nm Gate-All-Around Transistor Semiconductor Manufacturing",
-  "Large Reasoning Models in Complex Legal & Regulatory Analysis",
-];
-
-function getRandomEmergingTopics(): string[] {
-  const shuffled = [...DYNAMIC_EMERGING_TOPICS].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 4);
-}
+const PROGRESS_FLOORS: Record<string, number> = Object.fromEntries(
+  Object.entries(PHASE_BOUNDS).map(([k, v]) => [k, v.floor])
+);
 
 type DashboardMetrics = React.ComponentProps<typeof MetricsDashboard>["metrics"];
 
@@ -74,6 +171,40 @@ interface TelemetryLogEntry {
   timestamp: string;
   stage: string;
   message: string;
+}
+
+function cleanReport(raw: string): string {
+  // Backend (main.py) already strips ((reported by source)) patterns
+  // and ### Source Notes sections during report assembly (lines 2334-2336).
+  // This function is kept as a no-op for forward compatibility but does not
+  // perform any stripping to avoid double-removal of content that the backend
+  // has already properly handled.
+  return raw;
+}
+
+async function fetchSessionReport(sid: string): Promise<{
+  report: string;
+  metrics?: DashboardMetrics;
+} | null> {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/v1/sessions/${sid}`).catch(
+        () => fetch(`/api/v1/sessions/${sid}`)
+      );
+      if (res.ok) {
+        const sess = (await res.json()) as { report?: string; _metrics?: DashboardMetrics };
+        if (sess?.report && sess.report.trim().length > 100) {
+          return { report: sess.report, metrics: sess._metrics };
+        }
+      }
+    } catch {
+      // retry
+    }
+  }
+  return null;
 }
 
 export default function Home() {
@@ -84,16 +215,16 @@ export default function Home() {
   const [completedNodes, setCompletedNodes] = useState<Set<string>>(new Set());
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [sessionId, setSessionId] = useState("");
+  const sessionIdRef = useRef("");
   const [showMetrics, setShowMetrics] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isCancelled, setIsCancelled] = useState(false);
 
-  const [trendingTopics, setTrendingTopics] = useState<string[]>(DYNAMIC_EMERGING_TOPICS.slice(0, 4));
-  const [isFetchingTopics, setIsFetchingTopics] = useState(false);
   const [telemetryLogs, setTelemetryLogs] = useState<TelemetryLogEntry[]>([]);
 
   const reportRef = useRef<HTMLDivElement>(null);
   const telemetryContainerRef = useRef<HTMLDivElement>(null);
+  const maxPhaseIdxRef = useRef(-1);
 
   const activePhase = RESEARCH_PHASES.find((phase) => phase.id === activeNode) || RESEARCH_PHASES[0];
 
@@ -112,29 +243,6 @@ export default function Home() {
     ]);
   };
 
-  const fetchTrendingTopics = async () => {
-    setIsFetchingTopics(true);
-    try {
-      const res = await fetch(`/api/v1/trending-topics?t=${Date.now()}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.topics) && data.topics.length > 0) {
-          setTrendingTopics(data.topics);
-          return;
-        }
-      }
-    } catch {
-      // Fallback
-    } finally {
-      setIsFetchingTopics(false);
-    }
-    setTrendingTopics(getRandomEmergingTopics());
-  };
-
-  useEffect(() => {
-    fetchTrendingTopics();
-  }, []);
-
   useEffect(() => {
     if (report) {
       reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -142,18 +250,21 @@ export default function Home() {
   }, [report]);
 
   const handleNodeTransition = (node: string) => {
+    const idx = RESEARCH_PHASES.findIndex((p) => p.id === node);
+    if (idx < 0) return;
+    // Monotonic guard: ignore duplicate / out-of-order node events so the
+    // workflow is never replayed (backend can emit a node more than once).
+    if (idx <= maxPhaseIdxRef.current) return;
+    maxPhaseIdxRef.current = idx;
     setActiveNode(node);
-    const floor = PROGRESS_FLOORS[node];
-    if (floor !== undefined) {
-      setProgress((current) => Math.max(current, floor));
+    const bounds = PHASE_BOUNDS[node];
+    if (bounds) {
+      setProgress((current) => Math.max(current, bounds.floor));
     }
     setCompletedNodes((prev) => {
       const next = new Set(prev);
-      const idx = RESEARCH_PHASES.findIndex((p) => p.id === node);
-      if (idx !== -1) {
-        for (let i = 0; i < idx; i++) {
-          next.add(RESEARCH_PHASES[i].id);
-        }
+      for (let i = 0; i < idx; i++) {
+        next.add(RESEARCH_PHASES[i].id);
       }
       return next;
     });
@@ -165,24 +276,26 @@ export default function Home() {
     const interval = window.setInterval(() => {
       setProgress((current) => {
         if (report) return 100;
-        if (current >= 98) return 98;
 
-        const currentIdx = RESEARCH_PHASES.findIndex((p) => p.id === activeNode);
-        const nextNode = RESEARCH_PHASES[currentIdx + 1];
-        const cap = nextNode ? Math.min(98, (PROGRESS_FLOORS[nextNode.id] ?? 98) - 1) : 98;
-
-        if (current < cap) {
-          return current + 1;
+        const bounds = PHASE_BOUNDS[activeNode] || { floor: 0, ceil: 98 };
+        if (current < bounds.floor) {
+          return bounds.floor;
         }
-        return current;
+        if (current >= bounds.ceil) {
+          return bounds.ceil;
+        }
+
+        const step = 0.4;
+        return Math.min(bounds.ceil, current + step);
       });
-    }, 350);
+    }, 200);
 
     return () => window.clearInterval(interval);
   }, [isLoading, report, activeNode]);
 
   useEffect(() => {
     if (report) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setProgress(100);
       setCompletedNodes(new Set(RESEARCH_PHASES.map((p) => p.id)));
     }
@@ -199,10 +312,12 @@ export default function Home() {
     setCompletedNodes(new Set());
     setMetrics(null);
     setSessionId("");
+    sessionIdRef.current = "";
     setShowMetrics(false);
     setProgress(PROGRESS_FLOORS.planner);
     setIsCancelled(false);
     setTelemetryLogs([]);
+    maxPhaseIdxRef.current = 0;
 
     addTelemetryLog(`Initializing REX multi-agent pipeline for query: "${activeQuery}"`, "Planning");
     addTelemetryLog("Decomposing query into multi-dimensional sub-questions...", "Planning");
@@ -210,19 +325,23 @@ export default function Home() {
     let receivedEnd = false;
     try {
       let response: Response;
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
+      const fetchOpts: RequestInit = {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: activeQuery }),
+      };
+      // Try direct backend first — avoids Next.js proxy SSE buffering
+      // Falls back to proxy if the direct port is unreachable
+      const directUrl = "http://127.0.0.1:8000/api/v1/research/";
+      const proxyUrl = `${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/research/`;
       try {
-        response = await fetch(`${apiBase}/api/v1/research`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: activeQuery }),
-        });
+        response = await fetch(directUrl, fetchOpts);
       } catch {
-        response = await fetch("http://127.0.0.1:8000/api/v1/research", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: activeQuery }),
-        });
+        try {
+          response = await fetch(proxyUrl, fetchOpts);
+        } catch {
+          throw new Error("Backend server unavailable. Please ensure the backend is running on port 8000.");
+        }
       }
 
       if (!response.ok) {
@@ -231,7 +350,10 @@ export default function Home() {
       }
 
       const sessionHeader = response.headers.get("X-Session-Id");
-      if (sessionHeader) setSessionId(sessionHeader);
+      if (sessionHeader) {
+        sessionIdRef.current = sessionHeader;
+        setSessionId(sessionHeader);
+      }
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error("Streaming response was unavailable.");
@@ -249,6 +371,8 @@ export default function Home() {
 
         for (const line of lines) {
           const trimmed = line.trim();
+          // SSE heartbeat comment lines — skip
+          if (trimmed.startsWith(":")) continue;
           if (!trimmed.startsWith("data: ")) continue;
 
           let data: Record<string, unknown>;
@@ -257,16 +381,31 @@ export default function Home() {
           } catch {
             continue;
           }
-          if (typeof data.session_id === "string") setSessionId(data.session_id);
 
-          if (typeof data.message === "string") {
+          if (typeof data.session_id === "string") {
+            sessionIdRef.current = data.session_id;
+            setSessionId(data.session_id);
+          }
+
+          // ── Telemetry: pick up message from ANY event type ──
+          if (typeof data.message === "string" && data.message) {
             addTelemetryLog(data.message);
           }
+
           if (typeof data.track_text === "string") {
-            addTelemetryLog(`Track ${data.track_id}: ${data.track_status || ''} — ${data.track_text}`, "Searching");
+            addTelemetryLog(
+              `Track ${data.track_id}: ${data.track_status || ''} — ${data.track_text}`,
+              "Searching"
+            );
           }
-          if (Array.isArray(data.source_urls)) {
-            addTelemetryLog(`Scraped ${data.source_urls.length} verified web sources from search indices`, "Searching");
+          if (Array.isArray(data.source_urls) && data.source_urls.length > 0) {
+            addTelemetryLog(
+              `Scraped ${(data.source_urls as string[]).length} verified web sources from search indices`,
+              "Searching"
+            );
+          }
+          if (typeof data.source_url === "string") {
+            addTelemetryLog(`Verified source: ${data.source_url}`, "Searching");
           }
 
           if (typeof data.node === "string") {
@@ -278,45 +417,77 @@ export default function Home() {
               return;
             } else if (node === "end") {
               receivedEnd = true;
-              addTelemetryLog("Final Master Research Paper successfully generated & evaluated.", "Scoring");
-              if (typeof data.report === "string") {
-                let clean = data.report.replace(/\s*\([^)]*reported by(?: the)? source[^)]*\)/gi, '');
-                clean = clean.replace(/\n### Source Notes\n[\s\S]*?(?=\n###|\n##|$)/g, '');
-                setReport(clean);
+              addTelemetryLog("✅ Final Master Research Paper successfully generated & evaluated.", "Scoring");
+              if (typeof data.report === "string" && data.report.trim()) {
+                setReport(cleanReport(data.report));
                 setProgress(100);
                 setCompletedNodes(new Set(RESEARCH_PHASES.map((p) => p.id)));
+              } else {
+                // report field empty in the SSE event — recover from the session store
+                const sid = sessionIdRef.current;
+                if (sid) {
+                  const sess = await fetchSessionReport(sid);
+                  if (sess) {
+                    setReport(cleanReport(sess.report));
+                    setProgress(100);
+                    setCompletedNodes(new Set(RESEARCH_PHASES.map((p) => p.id)));
+                    if (sess.metrics) setMetrics(sess.metrics);
+                    addTelemetryLog("Report loaded from session store.", "Reporting");
+                  }
+                }
               }
               if (data.metrics) setMetrics(data.metrics as DashboardMetrics);
             } else if (node !== "start") {
               const matchedPhase = RESEARCH_PHASES.find((p) => p.id === node);
               const phaseLabel = matchedPhase ? matchedPhase.label : node;
               handleNodeTransition(node);
-              addTelemetryLog(`Advancing to phase: ${phaseLabel}`, phaseLabel);
+              // Only log phase advance if there was no message field (avoid duplicate)
+              if (!data.message) {
+                addTelemetryLog(`Advancing to phase: ${phaseLabel}`, phaseLabel);
+              }
             }
           }
         }
       }
+
       if (!receivedEnd) {
         console.warn("Stream ended before the report completed.");
+        addTelemetryLog("Stream ended — attempting to recover report from session store...", "Error");
+        const sid = sessionIdRef.current;
+        if (sid) {
+          const sess = await fetchSessionReport(sid);
+          if (sess) {
+            setReport(cleanReport(sess.report));
+            setProgress(100);
+            setCompletedNodes(new Set(RESEARCH_PHASES.map((p) => p.id)));
+            if (sess.metrics) setMetrics(sess.metrics);
+            addTelemetryLog("✅ Report recovered from session store.", "Reporting");
+          } else {
+            addTelemetryLog("Stream ended before report was complete. Please try again.", "Error");
+          }
+        } else {
+          addTelemetryLog("Stream ended before report was complete. Please try again.", "Error");
+        }
       }
     } catch (err) {
       console.error("Research pipeline error:", err);
-      addTelemetryLog(`Pipeline notification: ${err instanceof Error ? err.message : String(err)}`, "Error");
+      addTelemetryLog(`Pipeline error: ${err instanceof Error ? err.message : String(err)}`, "Error");
     } finally {
       setIsLoading(false);
     }
   };
 
   const cancelResearch = async () => {
-    if (!sessionId) return;
+    const sid = sessionIdRef.current;
+    if (!sid) return;
     setIsCancelled(true);
     addTelemetryLog("User requested cancellation — stopping research pipeline...", "Cancelling");
     const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
     try {
-      await fetch(`${apiBase}/api/v1/research/${sessionId}/cancel`, { method: "POST" });
+      await fetch(`${apiBase}/api/v1/research/${sid}/cancel`, { method: "POST" });
     } catch {
       try {
-        await fetch(`http://127.0.0.1:8000/api/v1/research/${sessionId}/cancel`, { method: "POST" });
+        await fetch(`http://127.0.0.1:8000/api/v1/research/${sid}/cancel`, { method: "POST" });
       } catch {}
     }
   };
@@ -327,11 +498,20 @@ export default function Home() {
     }, 100);
   };
 
-  return (
+return (
     <main className="relative min-h-screen overflow-x-hidden bg-black text-white px-4 py-8 sm:px-8 lg:px-16 print:bg-white print:text-black">
+      {/* SEO: Structured Data & Meta Tags */}
+      <div className="hidden">
+        {generateSchemaJSONLD(RESEARCH_SCHEMA)}
+        {generateOGMeta(OG_METADATA)}
+        {generateTwitterMeta(TWITTER_METADATA)}
+        <meta name="keywords" content={SITE_KEYWORDS} />
+        <meta name="author" content={SITE_AUTHOR} />
+      </div>
+      
       {/* Background Canvas */}
       <BackgroundCanvas />
-
+      
       <div className="relative z-10 mx-auto flex w-full max-w-4xl flex-col gap-12 pt-4">
         {/* SEARCH MODE (Empty State) */}
         {!isLoading && !report && (
@@ -342,6 +522,31 @@ export default function Home() {
               transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               className="mx-auto w-full max-w-2xl text-center space-y-5"
             >
+              {/* TOP QUICK NAVIGATION PILLS */}
+              <div className="flex flex-wrap items-center justify-center gap-2 font-mono text-xs pb-2">
+                <Link
+                  href="/brain"
+                  className="flex items-center gap-1.5 rounded-full border border-white/20 bg-zinc-950/80 px-3.5 py-1.5 text-zinc-300 hover:text-white hover:border-white transition shadow-md"
+                >
+                  <Brain className="h-3.5 w-3.5 text-[#E8D5B7]" />
+                  Neural Brain Visualizer
+                </Link>
+                <Link
+                  href="/learning-history"
+                  className="flex items-center gap-1.5 rounded-full border border-white/20 bg-zinc-950/80 px-3.5 py-1.5 text-zinc-300 hover:text-white hover:border-white transition shadow-md"
+                >
+                  <BrainCircuit className="h-3.5 w-3.5 text-[#C2410C]" />
+                  Learning Memory
+                </Link>
+                <Link
+                  href="/landing-page"
+                  className="flex items-center gap-1.5 rounded-full border border-white/20 bg-zinc-950/80 px-3.5 py-1.5 text-zinc-300 hover:text-white hover:border-white transition shadow-md"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-[#D4A853]" />
+                  Platform Benchmarks
+                </Link>
+              </div>
+
               {/* TWO-LINE TITLE HEADER ABOVE SEARCH BOX */}
               <div className="text-center pb-2 space-y-1">
                 <h1
@@ -394,9 +599,6 @@ export default function Home() {
                 </div>
               </div>
 
-
-
-
             </motion.div>
           </section>
         )}
@@ -427,7 +629,7 @@ export default function Home() {
                   <div className="flex flex-col items-end gap-2">
                     <div className="text-right">
                       <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Completion</div>
-                      <div className="text-3xl font-extrabold text-white font-mono">{progress}%</div>
+                      <div className="text-3xl font-extrabold text-white font-mono">{Math.round(progress)}%</div>
                     </div>
                     {!isCancelled && (
                       <button
@@ -453,7 +655,7 @@ export default function Home() {
                   </div>
                   <div className="flex justify-between text-[10px] text-zinc-400 font-mono">
                     <span>Phase: {activePhase.label}</span>
-                    <span>{progress === 98 ? "Finalizing report output..." : `${progress}% completed`}</span>
+                    <span>{progress >= 98 ? "Finalizing report output..." : `${Math.round(progress)}% completed`}</span>
                   </div>
                 </div>
 
@@ -541,7 +743,7 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* REPORT PRESENTATION */}
+        {/* REPORT PRESENTATION — shown immediately when report is ready, even if still loading */}
         <AnimatePresence>
           {Boolean(report) && (
             <motion.section
@@ -564,14 +766,23 @@ export default function Home() {
                     <Download className="h-3.5 w-3.5" />
                     PDF
                   </button>
-                  <a href={`/api/v1/research/${sessionId}/export?format=html`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg border border-white/30 bg-black px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-300 hover:border-white hover:text-white transition duration-200">
-                    <FileText className="h-3.5 w-3.5" />
-                    HTML
-                  </a>
-                  <a href={`/api/v1/research/${sessionId}/export?format=json`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg border border-white/30 bg-black px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-300 hover:border-white hover:text-white transition duration-200">
-                    <FileJson className="h-3.5 w-3.5" />
-                    JSON
-                  </a>
+                  {sessionId ? (
+                    <>
+                      <a href={`/api/v1/research/${sessionId}/export?format=html`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg border border-white/30 bg-black px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-300 hover:border-white hover:text-white transition duration-200">
+                        <FileText className="h-3.5 w-3.5" />
+                        HTML
+                      </a>
+                      <a href={`/api/v1/research/${sessionId}/export?format=json`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg border border-white/30 bg-black px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-300 hover:border-white hover:text-white transition duration-200">
+                        <FileJson className="h-3.5 w-3.5" />
+                        JSON
+                      </a>
+                    </>
+                  ) : (
+                    <span className="flex items-center gap-2 rounded-lg border border-white/10 bg-black px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-600 cursor-not-allowed" title="Export requires a session id">
+                      <FileText className="h-3.5 w-3.5" />
+                      Export
+                    </span>
+                  )}
                   <button onClick={() => { setReport(""); setQuery(""); }} className="flex items-center gap-2 rounded-lg border border-white/30 bg-black px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-300 hover:border-white hover:text-white transition duration-200">
                     <RefreshCw className="h-3.5 w-3.5" />
                     New Run
@@ -581,7 +792,10 @@ export default function Home() {
 
               {/* Markdown Body */}
               <article className="prose prose-invert max-w-none text-left print:text-black">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw, [rehypeSanitize, MARKDOWN_SCHEMA]]}
+                >
                   {report}
                 </ReactMarkdown>
               </article>
@@ -599,6 +813,9 @@ export default function Home() {
                     </button>
                   </div>
                   {showMetrics && <MetricsDashboard metrics={metrics} />}
+                  <div className="mt-8">
+                    <MemoryHealthDashboard />
+                  </div>
                 </div>
               )}
             </motion.section>
