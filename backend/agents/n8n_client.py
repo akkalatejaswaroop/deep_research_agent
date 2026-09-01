@@ -83,7 +83,15 @@ def dispatch_parallel_sub_questions(
                 except Exception:
                     pass
         if response.status_code == 200:
-            if not response.text or not response.text.strip():
+            # Limit response size to prevent memory issues
+            max_response_size = int(os.getenv("N8N_MAX_RESPONSE_SIZE", "1048576"))  # 1MB default
+            if len(response.text) > max_response_size:
+                print(f"[n8n_client] Response too large ({len(response.text)} bytes), truncating to {max_response_size} bytes")
+                response_text = response.text[:max_response_size]
+            else:
+                response_text = response.text
+            
+            if not response_text or not response_text.strip():
                 return {
                     "results": [{"sub_question": sq, "insight": f"Processed sub-question via n8n"} for sq in sub_questions],
                     "source": "n8n_ollama_parallel"
@@ -97,11 +105,11 @@ def dispatch_parallel_sub_questions(
                 return {"results": [data], "source": "n8n_ollama_parallel"}
             except Exception:
                 return {
-                    "results": [{"sub_question": sq, "insight": response.text[:4000]} for sq in sub_questions],
+                    "results": [{"sub_question": sq, "insight": response_text[:4000]} for sq in sub_questions],
                     "source": "n8n_ollama_parallel"
                 }
         else:
-            print(f"[n8n Client] Webhook returned status {response.status_code}: {response.text[:200]}")
+            print(f"[n8n Client] Webhook returned status {response.status_code}: {response_text[:200]}")
             return None
     except Exception as e:
         print(f"[n8n Client] Error dispatching sub-questions to n8n: {e}")

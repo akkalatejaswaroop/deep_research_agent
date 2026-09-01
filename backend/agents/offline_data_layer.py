@@ -335,7 +335,7 @@ class DatasetDownloader:
         
         try:
             import requests
-            with requests.get(url, stream=True) as r:
+            with requests.get(url, stream=True, timeout=30) as r:
                 r.raise_for_status()
                 total = int(r.headers.get('content-length', 0))
                 downloaded = 0

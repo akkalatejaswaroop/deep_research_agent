@@ -91,18 +91,32 @@ def _set_cached_page(url: str, content: str):
 
 
 def clean_markdown_text(text: str) -> str:
-    """Normalize whitespace and remove junk characters."""
+    """Normalize whitespace and remove web garbage (cookies, popups, boilerplate)."""
     if not text:
         return ""
+    # Remove image markdown
+    text = re.sub(r"!\[.*?\]\(.*?\)", "", text)
     # Collapse multiple blank lines
     text = re.sub(r"\n{3,}", "\n\n", text)
-    # Filter extremely short non-structural lines
+    
+    junk_patterns = (
+        "cookie policy", "accept cookies", "we use cookies", "privacy settings",
+        "subscribe to our newsletter", "sign up for our", "skip to content",
+        "all rights reserved", "terms of use", "privacy policy", "copyright ©",
+        "double click on what's possible", "skip to main content"
+    )
+    
     lines = []
     for line in text.splitlines():
         line_str = line.strip()
+        if line_str.startswith("```"):
+            continue
+        lower_line = line_str.lower()
+        if any(junk in lower_line for junk in junk_patterns):
+            continue
         if line_str or line_str.startswith("#"):
             lines.append(line_str)
-    return "\n".join(lines)
+    return "\n".join(lines).strip()
 
 
 def scrape_with_trafilatura(url: str, html_content: Optional[str] = None) -> Optional[str]:
@@ -220,12 +234,6 @@ def scrape_with_jina(url: str, timeout: int = 8) -> str:
         pass
     return ""
 
-
-def clean_markdown_text(text: str) -> str:
-    text = re.sub(r'\n{3,}', '\n\n', text)
-    text = re.sub(r'!\[.*?\]\(.*?\)', '', text)
-    lines = [l for l in text.splitlines() if not l.strip().startswith('```')]
-    return '\n'.join(lines).strip()
 
 
 def scrape_url(url: str, timeout: int = 5, use_cache: bool = True) -> Tuple[str, Optional[str]]:

@@ -1,0 +1,204 @@
+{
+  "label": "A_core_run_v4",
+  "session_id": "rextest-A_core_run_v4-20260826T062036",
+  "vault_path": "D:\\deep_research_agent\\rex_test_vault",
+  "query": "How are solid-state batteries being improved for electric vehicles?",
+  "wall_clock_seconds": 943.7,
+  "node_sequence": [
+    "memory_retrieval",
+    "planner",
+    "searcher",
+    "filter",
+    "synthesis",
+    "gap_detector",
+    "citation_mapper",
+    "report_node_id",
+    "evaluator",
+    "memory_update",
+    "evolution_analysis"
+  ],
+  "spec_node_order": [
+    "memory_retrieval",
+    "planner",
+    "searcher",
+    "filter",
+    "synthesis",
+    "gap_detector",
+    "citation_mapper",
+    "report_node_id",
+    "evaluator",
+    "memory_update",
+    "evolution_analysis"
+  ],
+  "order_matches_spec_linear": true,
+  "errors": [],
+  "exit_code": 0,
+  "vault_head_before": null,
+  "run_id": "RUN-01J8Y22E8F916C11D6A441CEE3",
+  "linked_notes": [
+    "FCT-01J8Y000000000000000000022",
+    "CLM-01J8Y3B511ABB0D3E0A297B109",
+    "CLM-01J8YC511E44D081098E5606CE",
+    "SRC-01J8Y379BF62AB5F967F184B4D",
+    "SRC-01J8Y379BF62AB5F967F184B4D",
+    "LSN-01J8Y9F0A0D381A0FC8C70D4FC",
+    "QST-01J8Y2F1F0A44AFCBA8EBC2ACE"
+  ],
+  "classification_table": [
+    {
+      "item": "Fact extracted from run for query 'How are solid-state batteries being improved ",
+      "category": "facts",
+      "classification": "LOW_CONFIDENCE",
+      "resulting_note_id": "FCT-01J8Y000000000000000000022",
+      "confidence": 0.65,
+      "reason": "score 0.62, matched FCT-01J8Y000000000000000000022"
+    },
+    {
+      "item": "[INSUFFICIENT EVIDENCE] No relevant sources were retrieved for this sub-question",
+      "category": "claims",
+      "classification": "DUPLICATE",
+      "resulting_note_id": "none",
+      "confidence": 0.6,
+      "reason": "score 0.90, matched CLM-01J8Y3B511ABB0D3E0A297B109"
+    },
+    {
+      "item": "Synthesis timed out; using cached or fallback information.",
+      "category": "claims",
+      "classification": "LOW_CONFIDENCE",
+      "resulting_note_id": "CLM-01J8YC511E44D081098E5606CE",
+      "confidence": 0.6,
+      "reason": "score 0.64, matched CLM-01J8Y000000000000000000101"
+    },
+    {
+      "item": "https://www.ufinebattery.com/blog/solid-",
+      "category": "sources",
+      "classification": "LOW_CONFIDENCE",
+      "resulting_note_id": "SRC-01J8Y379BF62AB5F967F184B4D",
+      "confidence": 0.6,
+      "reason": "score 0.61, matched SRC-01J8Y000000000000000000008"
+    },
+    {
+      "item": "solid-state-vs-lithium-ion-future-energy",
+      "category": "sources",
+      "classification": "LOW_CONFIDENCE",
+      "resulting_note_id": "SRC-01J8Y379BF62AB5F967F184B4D",
+      "confidence": 0.6,
+      "reason": "score 0.75, matched SRC-01J8Y379BF62AB5F967F184B4D"
+    },
+    {
+      "item": "Decompose broad queries into specific sub-questions before searching",
+      "category": "lessons",
+      "classification": "UPDATE",
+      "resulting_note_id": "LSN-01J8Y9F0A0D381A0FC8C70D4FC",
+      "confidence": 0.7,
+      "reason": "score 0.83, matched LSN-01J8Y3BD2174ECEC9186F76F67"
+    },
+    {
+      "item": "What are long-term implications of How are solid-state batteries being impr?",
+      "category": "unanswered_questions",
+      "classification": "DUPLICATE",
+      "resulting_note_id": "none",
+      "confidence": 0.5,
+      "reason": "score 0.93, matched QST-01J8Y2F1F0A44AFCBA8EBC2ACE"
+    }
+  ],
+  "memory_context_meta": {
+    "query": "How are solid-state batteries being improved for electric vehicles?",
+    "token_budget": 3000,
+    "token_count": 248,
+    "item_count": 7,
+    "scoring": "embedding_cosine * recency_decay * confidence",
+    "generated_at": "2026-08-26T06:21:12.027783+00:00"
+  },
+  "memory_context_items": {
+    "related_concepts": [],
+    "prior_questions": [
+      {
+        "id": "QST-01J8Y2F1F0A44AFCBA8EBC2ACE",
+        "title": "What are long-term implications of How are solid-state batteries being impr?",
+        "bucket": "prior_questions",
+        "score": 0.4589,
+        "tokens": 36
+      },
+      {
+        "id": "QST-01J8Y000000000000000000020",
+        "title": "What is long-term stability of Majorana modes at scale?",
+        "bucket": "prior_questions",
+        "score": 0.31,
+        "tokens": 31
+      }
+    ],
+    "relevant_claims": [
+      {
+        "id": "CLM-01J8Y000000000000000000002",
+        "title": "Braiding Majorana zero modes enables 99.9% fidelity gates",
+        "bucket": "relevant_claims",
+        "score": 0.3131,
+        "tokens": 28
+      }
+    ],
+    "prior_answers": [],
+    "supporting_sources": [
+      {
+        "id": "SRC-01J8Y000000000000000000008",
+        "title": "00_System/Examples/SRC-01J8Y000000000000000000008__alicea-2011-majorana-nanowired-paper.md",
+        "bucket": "supporting_sources",
+        "score": 0.5029,
+        "tokens": 58
+      }
+    ],
+    "contradictory_sources": [],
+    "prior_experiments": [
+      {
+        "id": "EXP-01J8Y000000000000000000009",
+        "title": "Topological gap protocol at 25 mK — device D07",
+        "bucket": "prior_experiments",
+        "score": 0.2744,
+        "tokens": 31
+      }
+    ],
+    "prior_failures": [],
+    "lessons": [],
+    "agent_strategy_notes": [
+      {
+        "id": "LSN-01J8Y000000000000000000012",
+        "title": "Keep Al deposition rate below 0.1 nm/s to avoid local heating",
+        "bucket": "agent_strategy_notes",
+        "score": 0.3807,
+        "tokens": 36
+      },
+      {
+        "id": "LSN-01J8Y3BD2174ECEC9186F76F67",
+        "title": "Decompose broad queries into specific sub-questions before searching",
+        "bucket": "agent_strategy_notes",
+        "score": 0.2902,
+        "tokens": 28
+      }
+    ]
+  },
+  "source_urls": [
+    "https://www.ufinebattery.com/blog/solid-state-battery-vs-lithium-ion-a-comparative-analysis/",
+    "https://www.techtimes.com/articles/313774/20260106/solid-state-vs-lithium-ion-future-energy-storage-battery-technology.htm",
+    "https://evbattery.us/solid-state-vs-lithium-ion-batteries/",
+    "https://arxiv.org/",
+    "https://standards.ieee.org/",
+    "https://www.sciencedirect.com/science/article/pii/S0378775325021913",
+    "https://axial.acs.org/energy/solid-state-battery-advancements-challenges-and-industry-impacts"
+  ],
+  "sub_questions": [
+    "How are solid-state batteries addressing the limitations of current lithium-ion batteries? (see [[CLM-01J8Y000000000000000000002]] — already established, skip re-deriving if verified)",
+    "What are the key technological advancements and their impacts on solid-state battery performance in electric vehicle applications?"
+  ],
+  "structured_refs_count": 7,
+  "feedback": "Future research should focus on developing more scalable manufacturing processes for ceramic electrolytes to reduce costs, which is currently a significant barrier to the widespread adoption of solid-state batteries.",
+  "is_valid_gap": true,
+  "gap_iterations": 1,
+  "prod_hashes_after": {
+    "backend/agents/graph.py": "46f32a9162d0cf7d4575aa97f3619732ee662391f4d7f22502732e0a7b273cc0",
+    "backend/agents/memory_agent.py": "25134a45acabf5940908ec8d0a1fd0146780e5c26de5ba7d0c9fda24e97cdbe1",
+    "backend/agents/ga_workflow.py": "d353b755c4b984be173be6ab198f85c910ddf37a1d239daf2fae4e6b9f13f5db",
+    "backend/agents/consolidation_agent.py": "494ccbf6dac2d8789987892b01fe68b8effa4fb2bc97130e0841da1585dd7218",
+    "backend/agents/state.py": "8ad95ca53866e7aaec94ceb79d0cdb88609bae90328e4f2994671e8dcaf34ecb"
+  },
+  "finished_at": "2026-08-26T06:36:20.415136+00:00"
+}

@@ -1,0 +1,24 @@
+{
+  "test": "Test G",
+  "passed": true,
+  "checklist": {
+    "1_color_groups_assigned": true,
+    "2_zero_unjustified_orphans": true,
+    "3_relationship_types_count": true,
+    "4_saved_filters_functional": true
+  },
+  "orphans": [],
+  "relationship_types": [
+    "part_of",
+    "implements",
+    "supports",
+    "related_to",
+    "depends_on",
+    "improves",
+    "learned_from",
+    "derived_from",
+    "contradicts",
+    "tested_by",
+    "created_by"
+  ]
+}

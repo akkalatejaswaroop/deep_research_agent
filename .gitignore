@@ -23,6 +23,8 @@ env/
 *.db
 *.db-shm
 *.db-wal
+*.backup
+backend_cache.json
 
 # Debug / logs
 *.log
@@ -32,6 +34,9 @@ yarn-error.log*
 backend_runtime*.log
 frontend_runtime*.log
 test_*.txt
+
+# Graphify cache
+graphify-out/cache/
 
 # OS / IDE
 .DS_Store

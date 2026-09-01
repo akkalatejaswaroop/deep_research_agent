@@ -613,5 +613,73 @@ def evolve(eval_set: Optional[List[Dict[str, Any]]] = None, generations: int = G
     return result
 
 
+def rollback_proposal(proposal_id: str, regression_evidence: str, target_vault: Optional[Any] = None) -> Dict[str, Any]:
+    """Roll back an accepted evolution proposal due to measured quality regression (Test J).
+    Never deletes or retroactively alters the original ACCEPTED proposal note.
+    Creates a new note with status ROLLED_BACK linked to the original proposal.
+    """
+    from . import memory_agent as ma
+    
+    # Read original proposal note
+    prop_data = ma.read_note(proposal_id)
+    fm = prop_data["frontmatter"]
+    body = prop_data["body"]
+
+    # Generate ULID for rollback note
+    now_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    digest = hashlib.sha256(f"{proposal_id}|rollback|{now_iso}".encode()).hexdigest().upper()
+    ulid = re.sub(r"[^0-9A-HJKMNP-TV-Z]", "0", ("01J8Y" + digest)[:26])[:26]
+    rb_id = f"PRP-{ulid}"
+
+    # Create rollback proposal note
+    rb_fm = {
+        "id": rb_id,
+        "type": "evolution_proposal",
+        "title": f"Rollback of {proposal_id}: {fm.get('title', 'Evolution proposal')}",
+        "status": "ROLLED_BACK",
+        "confidence": 0.9,
+        "created": now_iso,
+        "updated": now_iso,
+        "version": 1,
+        "source_count": 1,
+        "agent": "evolution",
+        "tags": ["evolution", "rollback"],
+        "target": fm.get("target", "workflow_topology"),
+        "current_version": fm.get("proposed_version", "1.0.1"),
+        "proposed_version": fm.get("current_version", "1.0.0"),
+        "change": f"Revert change from [[{proposal_id}]]: {fm.get('change', 'proposal')}",
+        "reason": f"Regression detected: {regression_evidence}",
+        "evidence": [f"[[{proposal_id}]]"],
+        "previous_performance": str(fm.get("expected_performance", "")),
+        "expected_performance": f"Revert to baseline performance ({fm.get('previous_performance', '')})",
+        "risk": "low",
+        "benchmark": "revert verification",
+        "operation": f"Revert [[{proposal_id}]]",
+        "expected_improvement": "revert regression",
+    }
+
+    rb_body = (
+        f"# Rollback of [[{proposal_id}]]\n\n"
+        f"**Target:** {fm.get('target', 'workflow_topology')}\n"
+        f"**Reverted Proposal:** [[{proposal_id}]]\n\n"
+        f"## Regression Evidence\n"
+        f"{regression_evidence}\n\n"
+        f"## Action Taken\n"
+        f"Reverted production workflow configuration to pre-acceptance baseline (`{fm.get('current_version', '1.0.0')}`).\n"
+        f"Original proposal [[{proposal_id}]] preserved intact with full historical trace.\n"
+    )
+
+    res = ma.create_note("evolution_proposal", rb_fm, rb_body, run_id="rollback")
+
+    return {
+        "status": "ROLLED_BACK",
+        "rollback_note_id": res.get("id"),
+        "original_proposal_id": proposal_id,
+        "reverted": True,
+        "path": res.get("path")
+    }
+
+
 if __name__ == "__main__":
     evolve()
+

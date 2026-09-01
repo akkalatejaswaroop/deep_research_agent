@@ -319,3 +319,110 @@ def save_global_knowledge_graph() -> None:
     global _global_kg
     if _global_kg is not None:
         _global_kg.save_to_db()
+
+
+def build_vault_graph(vault_path: Optional[Any] = None) -> Dict[str, Any]:
+    """Scan vault and return nodes, edges, and color groups for visualization."""
+    from pathlib import Path
+    from . import memory_agent as ma
+    vp = Path(vault_path) if vault_path else ma.VAULT_PATH
+    old_vp = ma.VAULT_PATH
+    ma.VAULT_PATH = vp
+    nodes = {}
+    edges = []
+    groups = {
+        "Research": "#3b82f6",
+        "Knowledge": "#10b981",
+        "Sources": "#8b5cf6",
+        "Experiments": "#f59e0b",
+        "Agents": "#ec4899",
+        "Evolution": "#ef4444",
+        "Projects": "#06b6d4",
+        "Failures": "#64748b"
+    }
+
+    try:
+        for fm, body, rel in ma._scan_notes():
+            nid = fm.get("id")
+            if not nid:
+                continue
+            ntype = fm.get("type", "concept")
+            title = fm.get("title", nid)
+            tags = fm.get("tags") or []
+            if isinstance(tags, str):
+                tags = [tags]
+
+            group = "Knowledge"
+            if ntype in {"claim", "fact", "hypothesis", "concept", "framework", "definition", "technique", "lesson"}:
+                group = "Knowledge"
+            elif ntype == "source":
+                group = "Sources"
+            elif ntype in {"experiment", "research_run", "result"}:
+                group = "Experiments"
+            elif ntype == "failure":
+                group = "Failures"
+            elif ntype in {"evolution_proposal", "genome", "contradiction"}:
+                group = "Evolution"
+            elif ntype == "project":
+                group = "Projects"
+            elif ntype == "agent":
+                group = "Agents"
+            elif ntype == "research_question":
+                group = "Research"
+
+            out_links = list(ma._extract_wikilinks(body))
+            for fm_key in ["supporting_sources", "contradicting_sources", "evidence", "derived_from", "prerequisites"]:
+                fm_val = fm.get(fm_key)
+                if fm_val:
+                    vals = fm_val if isinstance(fm_val, list) else [fm_val]
+                    for item in vals:
+                        for wl in ma._extract_wikilinks(str(item)):
+                            if wl not in out_links:
+                                out_links.append(wl)
+            for target_wl in out_links:
+                target_id = target_wl.split("__")[0].split("|")[0]
+                edges.append({"source": nid, "target": target_id, "relation": "related_to"})
+
+
+            rel_m = re.search(r"## Relationships\n(.*?)(?:\n## |\Z)", body, re.S)
+            if rel_m:
+                for line in rel_m.group(1).splitlines():
+                    lm = re.match(r"-\s*(\w+)::\s*\[\[([^\]]+)\]\]", line.strip())
+                    if lm:
+                        verb = lm.group(1)
+                        target_id = lm.group(2).split("__")[0].split("|")[0]
+                        edges.append({"source": nid, "target": target_id, "relation": verb})
+
+            node_tags = list(tags)
+            if "orphan justification:" in body.lower() or "orphan-intentional" in body.lower():
+                node_tags.append("orphan-intentional")
+
+            nodes[nid] = {
+                "id": nid,
+                "title": title,
+                "type": ntype,
+                "group": group,
+                "tags": node_tags,
+                "in_links": [],
+                "out_links": list(out_links)
+            }
+
+        for edge in edges:
+            s = edge["source"]
+            t = edge["target"]
+            if s in nodes and t not in nodes[s]["out_links"]:
+                nodes[s]["out_links"].append(t)
+            if t in nodes and s not in nodes[t]["in_links"]:
+                nodes[t]["in_links"].append(s)
+
+        for nid, node in nodes.items():
+            if node["type"] in {"system", "project", "agent", "lesson", "failure", "research_run"} or nid.startswith(("SYS-", "PRJ-", "AGT-", "LSN-", "FAL-", "RUN-")):
+                if "orphan-intentional" not in node["tags"]:
+                    node["tags"].append("orphan-intentional")
+    finally:
+        ma.VAULT_PATH = old_vp
+
+    return {"nodes": nodes, "edges": edges, "groups": groups}
+
+
+

@@ -1,0 +1,17 @@
+{
+  "test": "Test J",
+  "passed": true,
+  "checklist": {
+    "1_rollback_note_created": true,
+    "2_config_reverted": true,
+    "3_original_accepted_note_intact": true,
+    "4_rollback_status": true
+  },
+  "rollback_result": {
+    "status": "ROLLED_BACK",
+    "rollback_note_id": "PRP-01J8YC6B2D1970E4E07F7CE854",
+    "original_proposal_id": "PRP-01J8Y0342852E0EF314ECFFA60",
+    "reverted": true,
+    "path": "05_Evolution/Proposals/PRP-01J8YC6B2D1970E4E07F7CE854__rollback-of-prp-01j8y0342852e0ef314ecffa60-experimental-sear.md"
+  }
+}

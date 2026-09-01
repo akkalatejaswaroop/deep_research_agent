@@ -1,0 +1,58 @@
+[
+  {
+    "item": "Fact extracted from run for query 'How durable are sodium-ion battery cathodes o",
+    "category": "facts",
+    "classification": "DUPLICATE",
+    "resulting_note_id": "none",
+    "confidence": 0.65,
+    "reason": "score 0.92, matched FCT-01J8YE968750392D760E0C027B"
+  },
+  {
+    "item": "[INSUFFICIENT EVIDENCE] No relevant sources were retrieved for this sub-question",
+    "category": "claims",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "CLM-01J8Y2410014C1EE77EC5CFDD7",
+    "confidence": 0.6,
+    "reason": "score 0.69, matched CLM-01J8YCE677540F975DFA168073"
+  },
+  {
+    "item": "[INSUFFICIENT EVIDENCE] No relevant sources were retrieved for this sub-question",
+    "category": "claims",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "CLM-01J8YE2393297793AB2C07340E",
+    "confidence": 0.6,
+    "reason": "score 0.69, matched CLM-01J8YCE677540F975DFA168073"
+  },
+  {
+    "item": "Натрий-ионный_аккумулятор",
+    "category": "sources",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "SRC-01J8YABE4FBE17E424A4C52E5F",
+    "confidence": 0.6,
+    "reason": "score 0.66, matched SRC-01J8YABE4FBE17E424A4C52E5F"
+  },
+  {
+    "item": "Electric_battery",
+    "category": "sources",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "SRC-01J8YABE4FBE17E424A4C52E5F",
+    "confidence": 0.6,
+    "reason": "score 0.72, matched SRC-01J8YABE4FBE17E424A4C52E5F"
+  },
+  {
+    "item": "Decompose broad queries into specific sub-questions before searching",
+    "category": "lessons",
+    "classification": "UPDATE",
+    "resulting_note_id": "LSN-01J8Y07949101AF1C4CDDBF7AE",
+    "confidence": 0.7,
+    "reason": "score 0.82, matched LSN-01J8YD7F1158B7029C1F1DAD37"
+  },
+  {
+    "item": "What are long-term implications of How durable are sodium-ion battery catho?",
+    "category": "unanswered_questions",
+    "classification": "DUPLICATE",
+    "resulting_note_id": "none",
+    "confidence": 0.5,
+    "reason": "score 0.95, matched QST-01J8YDD44B1CA564E550BE44B0"
+  }
+]

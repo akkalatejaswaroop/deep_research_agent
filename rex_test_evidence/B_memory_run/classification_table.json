@@ -1,0 +1,58 @@
+[
+  {
+    "item": "Fact extracted from run for query 'How durable are sodium-ion battery cathodes o",
+    "category": "facts",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "FCT-01J8YE968750392D760E0C027B",
+    "confidence": 0.65,
+    "reason": "score 0.00, matched none"
+  },
+  {
+    "item": "[INSUFFICIENT EVIDENCE] No relevant sources were retrieved for this sub-question",
+    "category": "claims",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "CLM-01J8Y96040D4488ABB9B24A804",
+    "confidence": 0.6,
+    "reason": "score 0.69, matched CLM-01J8YCE677540F975DFA168073"
+  },
+  {
+    "item": "[INSUFFICIENT EVIDENCE] No relevant sources were retrieved for this sub-question",
+    "category": "claims",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "CLM-01J8YD92F29B23DC77A64E4923",
+    "confidence": 0.6,
+    "reason": "score 0.69, matched CLM-01J8YCE677540F975DFA168073"
+  },
+  {
+    "item": "?_gl=1*1iipqns*_gcl_au*MTQyNzA2OTMwNS4xN",
+    "category": "sources",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "SRC-01J8YABE4FBE17E424A4C52E5F",
+    "confidence": 0.6,
+    "reason": "score 0.69, matched SRC-01J8Y000000000000000000008"
+  },
+  {
+    "item": "https://arxiv.org/",
+    "category": "sources",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "SRC-01J8YFD47D2E5B1FE177F7DB2B",
+    "confidence": 0.6,
+    "reason": "score 0.56, matched none"
+  },
+  {
+    "item": "Decompose broad queries into specific sub-questions before searching",
+    "category": "lessons",
+    "classification": "NEW",
+    "resulting_note_id": "LSN-01J8YD7F1158B7029C1F1DAD37",
+    "confidence": 0.7,
+    "reason": "score 0.00, matched none"
+  },
+  {
+    "item": "What are long-term implications of How durable are sodium-ion battery catho?",
+    "category": "unanswered_questions",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "QST-01J8YDD44B1CA564E550BE44B0",
+    "confidence": 0.5,
+    "reason": "score 0.00, matched none"
+  }
+]

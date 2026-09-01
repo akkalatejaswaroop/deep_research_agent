@@ -1,0 +1,175 @@
+{
+  "label": "B_memory_budget150",
+  "session_id": "rextest-B_memory_budget150-20260826T130111",
+  "vault_path": "D:\\deep_research_agent\\rex_test_vault",
+  "query": "How durable are sodium-ion battery cathodes over long cycling lifetimes?",
+  "wall_clock_seconds": 947.7,
+  "node_sequence": [
+    "memory_retrieval",
+    "planner",
+    "searcher",
+    "filter",
+    "synthesis",
+    "gap_detector",
+    "citation_mapper",
+    "report_node_id",
+    "evaluator",
+    "memory_update",
+    "evolution_analysis"
+  ],
+  "spec_node_order": [
+    "memory_retrieval",
+    "planner",
+    "searcher",
+    "filter",
+    "synthesis",
+    "gap_detector",
+    "citation_mapper",
+    "report_node_id",
+    "evaluator",
+    "memory_update",
+    "evolution_analysis"
+  ],
+  "order_matches_spec_linear": true,
+  "errors": [],
+  "exit_code": 0,
+  "vault_head_before": null,
+  "run_id": "RUN-01J8YD41155F7A60F75E011C98",
+  "linked_notes": [
+    "FCT-01J8YE968750392D760E0C027B",
+    "CLM-01J8Y2410014C1EE77EC5CFDD7",
+    "CLM-01J8YE2393297793AB2C07340E",
+    "SRC-01J8YABE4FBE17E424A4C52E5F",
+    "SRC-01J8YABE4FBE17E424A4C52E5F",
+    "LSN-01J8Y07949101AF1C4CDDBF7AE",
+    "QST-01J8YDD44B1CA564E550BE44B0"
+  ],
+  "classification_table": [
+    {
+      "item": "Fact extracted from run for query 'How durable are sodium-ion battery cathodes o",
+      "category": "facts",
+      "classification": "DUPLICATE",
+      "resulting_note_id": "none",
+      "confidence": 0.65,
+      "reason": "score 0.92, matched FCT-01J8YE968750392D760E0C027B"
+    },
+    {
+      "item": "[INSUFFICIENT EVIDENCE] No relevant sources were retrieved for this sub-question",
+      "category": "claims",
+      "classification": "LOW_CONFIDENCE",
+      "resulting_note_id": "CLM-01J8Y2410014C1EE77EC5CFDD7",
+      "confidence": 0.6,
+      "reason": "score 0.69, matched CLM-01J8YCE677540F975DFA168073"
+    },
+    {
+      "item": "[INSUFFICIENT EVIDENCE] No relevant sources were retrieved for this sub-question",
+      "category": "claims",
+      "classification": "LOW_CONFIDENCE",
+      "resulting_note_id": "CLM-01J8YE2393297793AB2C07340E",
+      "confidence": 0.6,
+      "reason": "score 0.69, matched CLM-01J8YCE677540F975DFA168073"
+    },
+    {
+      "item": "Натрий-ионный_аккумулятор",
+      "category": "sources",
+      "classification": "LOW_CONFIDENCE",
+      "resulting_note_id": "SRC-01J8YABE4FBE17E424A4C52E5F",
+      "confidence": 0.6,
+      "reason": "score 0.66, matched SRC-01J8YABE4FBE17E424A4C52E5F"
+    },
+    {
+      "item": "Electric_battery",
+      "category": "sources",
+      "classification": "LOW_CONFIDENCE",
+      "resulting_note_id": "SRC-01J8YABE4FBE17E424A4C52E5F",
+      "confidence": 0.6,
+      "reason": "score 0.72, matched SRC-01J8YABE4FBE17E424A4C52E5F"
+    },
+    {
+      "item": "Decompose broad queries into specific sub-questions before searching",
+      "category": "lessons",
+      "classification": "UPDATE",
+      "resulting_note_id": "LSN-01J8Y07949101AF1C4CDDBF7AE",
+      "confidence": 0.7,
+      "reason": "score 0.82, matched LSN-01J8YD7F1158B7029C1F1DAD37"
+    },
+    {
+      "item": "What are long-term implications of How durable are sodium-ion battery catho?",
+      "category": "unanswered_questions",
+      "classification": "DUPLICATE",
+      "resulting_note_id": "none",
+      "confidence": 0.5,
+      "reason": "score 0.95, matched QST-01J8YDD44B1CA564E550BE44B0"
+    }
+  ],
+  "memory_context_meta": {
+    "query": "How durable are sodium-ion battery cathodes over long cycling lifetimes?",
+    "token_budget": 150,
+    "token_count": 131,
+    "item_count": 3,
+    "scoring": "embedding_cosine * recency_decay * confidence",
+    "generated_at": "2026-08-26T13:01:57.566967+00:00"
+  },
+  "memory_context_items": {
+    "related_concepts": [],
+    "prior_questions": [
+      {
+        "id": "QST-01J8YDD44B1CA564E550BE44B0",
+        "title": "What are long-term implications of How durable are sodium-ion battery catho?",
+        "bucket": "prior_questions",
+        "score": 0.5384,
+        "tokens": 36
+      }
+    ],
+    "relevant_claims": [
+      {
+        "id": "CLM-01J8Y1DAB893CFC21F69921288",
+        "title": "Tunnel-type Na cathodes resist strain because their open frames flex during sodiation",
+        "bucket": "relevant_claims",
+        "score": 0.3798,
+        "tokens": 39
+      }
+    ],
+    "prior_answers": [],
+    "supporting_sources": [
+      {
+        "id": "SRC-01J8Y89ABCAC22810ED562FD2D",
+        "title": "03_Sources/Papers/SRC-01J8Y89ABCAC22810ED562FD2D__cathode-durability-study-of-layered-sodium-ion-cells.md",
+        "bucket": "supporting_sources",
+        "score": 0.5913,
+        "tokens": 56
+      }
+    ],
+    "contradictory_sources": [],
+    "prior_experiments": [],
+    "prior_failures": [],
+    "lessons": [],
+    "agent_strategy_notes": []
+  },
+  "source_urls": [
+    "https://ru.wikipedia.org/wiki/Натрий-ионный_аккумулятор",
+    "https://en.wikipedia.org/wiki/Electric_battery",
+    "https://en.wikipedia.org/wiki/Sodium-ion_battery",
+    "https://chemistry-europe.onlinelibrary.wiley.com/doi/10.1002/batt.202400025",
+    "https://advanced.onlinelibrary.wiley.com/doi/abs/10.1002/aenm.202300149",
+    "https://www.academia.edu/Documents/in/Sodium_Ion_Battery",
+    "https://www.ess-news.com/2026/08/12/scandium-doping-coating-improve-cycling-stability-of-sodium-ion-battery-cathodes/",
+    "https://spectrum.ieee.org/sodium-ion-battery-peak-energy"
+  ],
+  "sub_questions": [
+    "Sub-question 1: What are the core mechanisms and technical definitions of sodium-ion battery cathode durability? (see [[CLM-01J8Y1DAB893CFC21F69921288]] — already established, skip re-deriving if verified)",
+    "Sub-question 2: What empirical data and benchmarks exist for measuring sodium-ion battery cathode durability over long cycling lifetimes?"
+  ],
+  "structured_refs_count": 0,
+  "feedback": "Future research should focus on developing standardized testing protocols and advanced characterization techniques to generate comprehensive empirical data for measuring sodium-ion battery cathode durability under long cycling conditions.",
+  "is_valid_gap": true,
+  "gap_iterations": 1,
+  "prod_hashes_after": {
+    "backend/agents/graph.py": "2f98f948b0969dc3c2391f05cf1907350e71734eac28ba9319bd6188bacb4dd3",
+    "backend/agents/memory_agent.py": "25134a45acabf5940908ec8d0a1fd0146780e5c26de5ba7d0c9fda24e97cdbe1",
+    "backend/agents/ga_workflow.py": "d353b755c4b984be173be6ab198f85c910ddf37a1d239daf2fae4e6b9f13f5db",
+    "backend/agents/consolidation_agent.py": "494ccbf6dac2d8789987892b01fe68b8effa4fb2bc97130e0841da1585dd7218",
+    "backend/agents/state.py": "8ad95ca53866e7aaec94ceb79d0cdb88609bae90328e4f2994671e8dcaf34ecb"
+  },
+  "finished_at": "2026-08-26T13:16:58.933951+00:00"
+}

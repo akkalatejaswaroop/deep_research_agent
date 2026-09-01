@@ -155,3 +155,82 @@ def clear(sid: str):
 def _normalize_topic(query: str) -> str:
     words = query.lower().split()[:4]
     return " ".join(sorted(words)) if words else ""
+
+
+def render_dashboard(vault_path: Optional[Any] = None) -> str:
+    """Scan vault and render 00_Dashboard.md markdown metrics."""
+    from pathlib import Path
+    from . import memory_agent as ma
+    vp = Path(vault_path) if vault_path else ma.VAULT_PATH
+
+    counts = {
+        "claims": 0, "verified_claims": 0, "facts": 0, "concepts": 0,
+        "sources": 0, "runs": 0, "proposals": 0, "accepted_proposals": 0,
+        "contradictions": 0, "genomes": 0, "failures": 0, "hot": 0, "warm": 0, "cold": 0
+    }
+
+    recent_notes = []
+
+    for fm, body, rel in ma._scan_notes():
+        ntype = fm.get("type")
+        status = fm.get("status")
+        tier = ma._effective_tier(fm)
+        nid = fm.get("id")
+        title = fm.get("title", "")
+
+        if tier in counts:
+            counts[tier] += 1
+
+        if ntype == "claim":
+            counts["claims"] += 1
+            if status == "verified":
+                counts["verified_claims"] += 1
+        elif ntype == "fact":
+            counts["facts"] += 1
+        elif ntype == "concept":
+            counts["concepts"] += 1
+        elif ntype == "source":
+            counts["sources"] += 1
+        elif ntype == "research_run":
+            counts["runs"] += 1
+        elif ntype == "evolution_proposal":
+            counts["proposals"] += 1
+            if status == "ACCEPTED":
+                counts["accepted_proposals"] += 1
+        elif ntype == "contradiction":
+            counts["contradictions"] += 1
+        elif ntype == "genome":
+            counts["genomes"] += 1
+        elif ntype == "failure":
+            counts["failures"] += 1
+
+        if nid and len(recent_notes) < 10:
+            recent_notes.append(f"- [[{nid}]] ({ntype}) — {title}")
+
+    dash = [
+        "# REX-Brain Dashboard",
+        "",
+        "## Knowledge Metrics",
+        f"- Verified Claims: **{counts['verified_claims']}** / {counts['claims']}",
+        f"- Total Facts: **{counts['facts']}**",
+        f"- Synthesized Concepts: **{counts['concepts']}**",
+        f"- Sources Indexed: **{counts['sources']}**",
+        f"- Active Contradictions: **{counts['contradictions']}**",
+        "",
+        "## System & Evolution Metrics",
+        f"- Research Runs Executed: **{counts['runs']}**",
+        f"- Evolution Proposals: **{counts['proposals']}** ({counts['accepted_proposals']} accepted)",
+        f"- Genomes Evaluated: **{counts['genomes']}**",
+        f"- Logged Failures: **{counts['failures']}**",
+        "",
+        "## Memory Health",
+        f"- HOT Tier Notes: **{counts['hot']}**",
+        f"- WARM Tier Notes: **{counts['warm']}**",
+        f"- COLD Tier Notes: **{counts['cold']}**",
+        "",
+        "## Recent Notes",
+        "\n".join(recent_notes) if recent_notes else "- No notes recorded yet.",
+        ""
+    ]
+    return "\n".join(dash)
+

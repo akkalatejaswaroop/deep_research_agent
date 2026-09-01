@@ -1,0 +1,155 @@
+{
+  "applied": [
+    ".claude-obsidian.json",
+    ".gitignore",
+    ".obsidian/app.json",
+    ".obsidian/appearance.json",
+    ".obsidian/graph.json",
+    ".obsidian/snippets/vault-colors.css",
+    ".raw/.manifest.json",
+    "inbox/.gitkeep",
+    "wiki/hot.md",
+    "wiki/index.md",
+    "wiki/log.md",
+    "wiki/meta/ledgers/claim-ledger.json",
+    "wiki/meta/ledgers/source-ledger.json",
+    "wiki/overview.md"
+  ],
+  "approval_sha256": "e5e188761b06cbee80ebadc9b19f6d2d16a380033da8469d0bf348c9db7a5be4",
+  "created_epoch": 1788149315.3384287,
+  "expanded_bundle_sha256": "d456004e543d823411b57385c5c107469275e042e73ac2af85f44b883560aad3",
+  "input_bundle_sha256": "d456004e543d823411b57385c5c107469275e042e73ac2af85f44b883560aad3",
+  "operation_id": "init-knowledge-vault",
+  "operation_type": "setup",
+  "rolled_back_epoch": 1788149317.3228943,
+  "schema": "claude-obsidian.transaction-journal.v1",
+  "state": "rolled-back",
+  "writes": [
+    {
+      "backup": "0000.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "5701c6910dcdb39cd0494769e6e8e2814cbb01cf2bc5c29d2b40fcf5094e1453",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": ".claude-obsidian.json"
+    },
+    {
+      "backup": "0001.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "0d62dd96ce7a511d2f0154b6373b7a0bfc74b7985c2342af9357751b9fba42dd",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": ".gitignore"
+    },
+    {
+      "backup": "0002.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "b8c736f8900e4d28ead438125440572f32f5a475dd094ba7155b0879dc253c4b",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": ".obsidian/app.json"
+    },
+    {
+      "backup": "0003.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "d0bd766999b3bb8d45bdb5997916d82c51123c295599ff6a5db39ba40618bd7a",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": ".obsidian/appearance.json"
+    },
+    {
+      "backup": "0004.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "574d00b8e5c2e16724678023c50a85e727af9067839f8612c55958e525f90c99",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": ".obsidian/graph.json"
+    },
+    {
+      "backup": "0005.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "908fd97fabd94e989cc979605bb7b17b4da33c409e4846fd701780aea53107fd",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": ".obsidian/snippets/vault-colors.css"
+    },
+    {
+      "backup": "0006.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "3061feca9f7973930654de66ebf3bb0959e23783f0129ce899634c91e2c050fb",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": ".raw/.manifest.json"
+    },
+    {
+      "backup": "0007.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": "inbox/.gitkeep"
+    },
+    {
+      "backup": "0008.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "c439b5142193cd511be8da6b7a547d63875dad5453a117ecdfbe6df095bd4eba",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": "wiki/hot.md"
+    },
+    {
+      "backup": "0009.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "b466ff40cef29aae34121d674df1c4ffcb07f0280d3580705f32f11894f73896",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": "wiki/index.md"
+    },
+    {
+      "backup": "0010.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "01ab0554ad18835c5e4f18072fa7b7ef51f99a07f9ccfdd3055aafb20aa58bab",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": "wiki/log.md"
+    },
+    {
+      "backup": "0011.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "148b2464bba8cfb61ac0b823825e65f11894bf2033c10ca580a4eea8831f58b4",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": "wiki/meta/ledgers/claim-ledger.json"
+    },
+    {
+      "backup": "0012.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "a426118405944ae5ba763cd08f0d0736be9dd6301838fc49013bc73bd804f71c",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": "wiki/meta/ledgers/source-ledger.json"
+    },
+    {
+      "backup": "0013.original",
+      "mode": "create",
+      "new_mode": 384,
+      "new_sha256": "f6cb62f502c6dfe96fca170eab4c2954a496eee013aa245ebffc14d75579e7f3",
+      "original_mode": null,
+      "original_sha256": null,
+      "path": "wiki/overview.md"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "test": "Test E",
+  "passed": true,
+  "checklist": {
+    "1_ga_runs_successfully": true,
+    "2_eval_scores_logged": true,
+    "3_unsafe_genome_rejected": true,
+    "4_rejection_reason_safety": true
+  },
+  "gate_res": {
+    "accepted": false,
+    "fitness_delta": -0.0675,
+    "clears_threshold": false,
+    "within_safety_floor": false,
+    "no_reliability_regression": false,
+    "reasons": [
+      "fitness delta -0.0675 < threshold 0.05",
+      "failure rate 0.5 exceeds safety floor 0.1",
+      "failure rate regressed vs production (0.5 > 0.05)"
+    ],
+    "llm_opinion_used": false
+  }
+}

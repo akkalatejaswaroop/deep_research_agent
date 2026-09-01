@@ -687,11 +687,6 @@ def _classify_write(query_text: str, note_type: str, threshold: float = SIMILARI
             continue
     if best_score >= threshold:
         return ("DUPLICATE", best_id, best_score)
-    # check for contradiction: if new claim contradicts existing with high similarity but opposite stance?
-    # simple heuristic: if best_score >= 0.75 and note_type == "claim", mark CONTRADICTION
-    if note_type in {"claim","fact"} and best_score >= 0.75 and best_score < threshold:
-        # we could detect contradicting_sources overlap, but keep simple
-        return ("CONTRADICTION", best_id, best_score)
     if best_score >= 0.6:
         return ("UPDATE", best_id, best_score)
     return ("NEW", None, best_score)
@@ -1618,6 +1613,7 @@ def get_provenance(note_id: str) -> Dict[str, Any]:
                         cwd=str(VAULT_PATH), capture_output=True, text=True, timeout=10)
     return {
         "id": fm.get("id"), "type": fm.get("type"), "title": fm.get("title"),
+        "frontmatter": fm,
         "created_by_agent": fm.get("agent"), "created": fm.get("created"), "updated": fm.get("updated"),
         "version": fm.get("version"), "confidence": fm.get("confidence"),
         "supporting_sources": fm.get("supporting_sources", []),

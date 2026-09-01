@@ -451,7 +451,7 @@ def fetch_duckduckgo(query: str, config: RunnableConfig, max_results: int = 8, m
                 "https://html.duckduckgo.com/html/",
                 params={"q": query},
                 headers=BROWSER_HEADERS,
-                timeout=5
+                timeout=8  # Increased timeout for reliability
             )
             if r.status_code == 200:
                 soup = BeautifulSoup(r.text, "html.parser")
@@ -467,21 +467,30 @@ def fetch_duckduckgo(query: str, config: RunnableConfig, max_results: int = 8, m
 
     if urls:
         from agents.scraper import scrape_url
-        with ThreadPoolExecutor(max_workers=min(5, len(urls))) as ex:
-            futures = {ex.submit(scrape_url, u): u for u in urls}
+        # Reduced worker count to prevent overwhelming local resources
+        with ThreadPoolExecutor(max_workers=min(3, len(urls))) as ex:
+            futures = {ex.submit(scrape_url, u, timeout=10): u for u in urls}  # Added timeout to scrape
             for f in as_completed(futures):
-                u, content = f.result()
-                if content:
-                    results[u] = content
+                try:
+                    u, content = f.result(timeout=15)  # Added timeout to future result
+                    if content:
+                        results[u] = content
+                except Exception as e:
+                    print(f"    Scraping failed for {u}: {e}")
     return results
 
 def fetch_wikipedia(query: str, config: RunnableConfig) -> Dict[str, str]:
     emit_thought(config, f"[Wikipedia] Searching local knowledge base for: {query}")
-    from agents.wiki_local import fetch_wikipedia_results
-    results = fetch_wikipedia_results(query, max_articles=4)
-    for url in results.keys():
-        emit_source(config, url)
-    return results
+    try:
+        from agents.wiki_local import fetch_wikipedia_results
+        results = fetch_wikipedia_results(query, max_articles=4)
+        for url in results.keys():
+            emit_source(config, url)
+        return results
+    except Exception as e:
+        print(f"Wikipedia local search failed: {e}")
+        emit_thought(config, f"Wikipedia local search failed: {e}")
+        return {}
 
 
 def _wiki_fetch(title: str) -> tuple:
@@ -665,9 +674,10 @@ def fetch_arxiv(query: str, config: RunnableConfig, max_results: int = 5) -> Dic
                 "sortOrder": "descending",
             },
             headers={"User-Agent": "DeepResearchAgent/1.0"},
-            timeout=8,  # Reduced from 10 to 8
+            timeout=10,  # Increased for reliability
         )
         if resp.status_code != 200:
+            print(f"arXiv API returned status {resp.status_code}")
             return results
         import xml.etree.ElementTree as ET
         root = ET.fromstring(resp.text)
@@ -805,6 +815,15 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict:
     emit_thought(config, "Analyzing query and planning sub-questions...")
     
     query = state.get("query", "")
+    # Basic input validation and sanitization
+    if query:
+        # Remove potentially dangerous characters and limit length
+        query = query.strip()
+        if len(query) > 500:  # Reasonable limit for research queries
+            query = query[:500] + "..."
+        # Remove control characters that could cause issues
+        query = ''.join(char for char in query if ord(char) >= 32 or char in '\n\r\t')
+    
     target_paragraphs = state.get("target_paragraphs", 3)
     target_sub_questions = state.get("target_sub_questions", 10)
     messages = state.get("messages", [])
@@ -826,6 +845,15 @@ def planner_node(state: AgentState, config: RunnableConfig) -> Dict:
         query = "Default research topic"
         
     start_session(sid, query, state.get("depth", 1))
+    
+    # --- Execute Agent #1 (Query Decomposer ReAct Agent) ---
+    try:
+        from agents.fleet import get_agent_fleet
+        fleet = get_agent_fleet()
+        ag_res = fleet.execute_fleet_step(1, f"Decompose query: {query}", {"query": query})
+        print(f"  [Agent #1: {ag_res.agent_name}] {ag_res.summary}")
+    except Exception as _ag_err:
+        print(f"  [Agent #1 Execution Log]: {_ag_err}")
     
     # --- Use first-class MemoryContext (from memory_retrieval node) ---
     memory_context = state.get("memory_context") or {}
@@ -1108,12 +1136,13 @@ def searcher_node(state: AgentState, config: RunnableConfig) -> Dict:
                     fake_url = f"https://n8n.local/insight/{idx+1}"
                     if insight and fake_url not in existing_pages:
                         existing_pages[fake_url] = f"# {sq}\n\n{insight}"
-                        existing_urls.append(fake_url)
                 emit_thought(config, f"[n8n Engine] Successfully processed {len(n8n_resp['results'])} sub-questions via local n8n.")
     except Exception as n8n_err:
         print(f"n8n parallel dispatch fallback: {n8n_err}")
 
-    with ThreadPoolExecutor(max_workers=5) as executor:  # Reduced from 10 to 5
+    # Use smaller worker count for local Ollama models to prevent memory issues
+    effective_max_workers = min(3, len(queries_to_run))  # Further reduced for Ollama stability
+    with ThreadPoolExecutor(max_workers=effective_max_workers) as executor:
         futures_to_query = {executor.submit(cached_search, q, config, max_res, max_scr): q for q in queries_to_run}
         try:
             for future in as_completed(futures_to_query, timeout=60):  # Add 60s overall timeout
@@ -1203,31 +1232,44 @@ def filter_node(state: AgentState, config: RunnableConfig) -> Dict:
     all_scored = []
     THRESHOLD = 7
 
-    def lexical_score(question: str, content: str, url: str) -> float:
+    def _flatten_queries(qs):
+        out = []
+        if isinstance(qs, (list, tuple)):
+            for x in qs:
+                out.extend(_flatten_queries(x))
+        elif isinstance(qs, str) and qs.strip():
+            out.append(qs.strip())
+        return out
+
+    def lexical_score(question: str, content: str, url: str, source_rankings: dict, source_quality: dict) -> float:
+        question = question if isinstance(question, str) else " ".join(_flatten_queries(question))
         text = f"{url} {content[:3000]}".lower()
         terms = [t for t in re.findall(r"[a-zA-Z0-9]{4,}", question.lower()) if t not in {"what", "when", "where", "which", "with", "from", "about", "research"}]
         if not terms:
             return 0.0
         matches = sum(text.count(term) for term in terms)
         tier = _classify_source_tier(url)
-        tier_multiplier = SOURCE_RANKINGS.get(tier, 0.5)
+        tier_multiplier = source_rankings.get(tier, 0.5)
         authority_bonus = 2.0 * tier_multiplier
         if any(domain in url.lower() for domain in [".edu", ".gov", "arxiv.org", "nature.com", "science.org", "ieee.org", "acm.org", "who.int", "oecd.org"]):
             authority_bonus = 2.0
-        return matches + authority_bonus + SOURCE_QUALITY.get(get_provenance(url), 0.6)
+        return matches + authority_bonus + source_quality.get(get_provenance(url), 0.6)
 
-    def process_sq(sq_idx, sq):
+    # Process each sub-question explicitly to avoid closure issues
+    for sq_idx, sq in enumerate(sub_questions):
         sq_queries = search_queries[sq_idx] if sq_idx < len(search_queries) else [sq]
+        sq_queries = _flatten_queries(sq_queries) or [sq]
         ranked_pages = sorted(
             raw_pages.items(),
-            key=lambda item: max(lexical_score(q, item[1], item[0]) for q in [sq, *sq_queries]),
+            key=lambda item: max(lexical_score(q, item[1], item[0], SOURCE_RANKINGS, SOURCE_QUALITY) for q in [sq, *sq_queries]),
             reverse=True
         )
         candidate_pages = dict(ranked_pages[:7])
         candidate_pages = {k: v for k, v in candidate_pages.items() if not _is_blocked_source(k) and not _is_downweighted_source(k)}
 
         if not candidate_pages:
-            return []
+            # Continue to next sub-question instead of returning early
+            continue
 
         items_for_prompt = []
         url_keys = []
@@ -1261,12 +1303,18 @@ Return ONLY a JSON array of objects:
                 score = entry.get("score", 0)
                 reason = entry.get("reason", "")
                 quality = SOURCE_QUALITY.get(get_provenance(url), 0.6)
-                adjusted = int(score * quality)
-                if adjusted >= THRESHOLD and url in candidate_pages:
+                try:
+                    raw_score = int(score)
+                except (TypeError, ValueError):
+                    continue
+                # Quality-weighted score is used for RANKING; the pass gate uses the
+                # judge's raw 0-10 score so ordinary-quality pages can still qualify.
+                adjusted = int(raw_score * quality)
+                if raw_score >= THRESHOLD and url in candidate_pages:
                     chunks = chunk_text(candidate_pages[url])
                     ranked_chunks = sorted(
                         chunks,
-                        key=lambda chunk: lexical_score(sq, chunk, url),
+                        key=lambda chunk: lexical_score(sq, chunk, url, SOURCE_RANKINGS, SOURCE_QUALITY),
                         reverse=True
                     )[:4]
                     for chunk in ranked_chunks:
@@ -1279,11 +1327,17 @@ Return ONLY a JSON array of objects:
                             "reason": reason
                         })
         else:
+            # Judge output unparseable: fall back to lexical scoring so the
+            # threshold gate stays meaningful (a fixed int(6*quality) <= 6 can
+            # never clear THRESHOLD=7 and silently empties the pipeline).
             for url, content in candidate_pages.items():
+                lex = lexical_score(sq, content, url, SOURCE_RANKINGS, SOURCE_QUALITY)
+                if lex < THRESHOLD:
+                    continue
                 chunks = chunk_text(content)
                 ranked_chunks = sorted(
                     chunks,
-                    key=lambda chunk: lexical_score(sq, chunk, url),
+                    key=lambda chunk: lexical_score(sq, chunk, url, SOURCE_RANKINGS, SOURCE_QUALITY),
                     reverse=True
                 )[:3]
                 for chunk in ranked_chunks:
@@ -1293,20 +1347,17 @@ Return ONLY a JSON array of objects:
                         "sub_question": sq,
                         "url": url,
                         "chunk": chunk,
-                        "score": int(6 * quality),
-                        "reason": "Unscored (fallback)"
+                        "score": int(min(10, lex) * quality),
+                        "reason": "Lexical fallback"
                     })
-        return local_scored
+        all_scored.extend(local_scored)
 
     is_local = not (os.getenv("API_LLM_API_KEY") or os.getenv("API_LLM_BASE_URL"))
     max_workers = 1 if is_local else 5
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_sq = {executor.submit(process_sq, i, sq): sq for i, sq in enumerate(sub_questions)}
-        for future in as_completed(future_to_sq):
-            try:
-                all_scored.extend(future.result())
-            except Exception as e:
-                print(f"Error in filter for {future_to_sq[future]}: {e}")
+    # Process sequentially to avoid threading issues with LangGraph state
+    # for i, sq in enumerate(sub_questions):
+    #     # Processing logic moved above to eliminate closure variables
+    #     pass
 
     print(f"  Total scored chunks passing threshold: {len(all_scored)}")
     record_node_exit(sid, "filter")
@@ -1344,12 +1395,16 @@ def synthesis_node(state: AgentState, config: RunnableConfig) -> Dict:
 
         seen_urls = {}
         source_blocks = []
+        # Context-budget cap: feed only the highest-scoring chunks that fit a small
+        # local-model window (oversized prompts truncate silently / stall prefill).
+        relevant_chunks = sorted(
+            relevant_chunks, key=lambda c: c.get("score", 0), reverse=True)[:8]
         for c in relevant_chunks:
             url = c["url"]
             global_id = url_to_idx.get(url, len(seen_urls) + 1)
             if url not in seen_urls:
                 seen_urls[url] = global_id
-            source_blocks.append(f"[{global_id}] {url}: {c['chunk'][:1200]}")
+            source_blocks.append(f"[{global_id}] {url}: {c['chunk'][:800]}")
 
         memory_block = ""
         retrieved = state.get("retrieved_memory", [])
@@ -1513,6 +1568,13 @@ def gap_detector_node(state: AgentState, config: RunnableConfig) -> Dict:
     synthesis_results = state.get("synthesis_results", [])
     gap_iteration = state.get("gap_iteration", 0)
     max_depth = state.get("depth", 2)
+    
+    # Get configurable max iterations from environment with fallback
+    try:
+        max_depth = int(os.getenv("MAX_GAP_ITERATIONS", str(max_depth)))
+    except ValueError:
+        pass  # Keep default if invalid
+    max_depth = max(1, max_depth)  # Ensure at least 1 iteration
 
     if not synthesis_results:
         return {
@@ -1733,7 +1795,8 @@ Research findings to compile into the report:
     if sn_before > 0:
         print(f'  [REPORT_NODE] Source Notes: {sn_before} -> {sn_after}')
 
-    structured_refs = state.get("structured_refs", [])
+    structured_refs = [r for r in state.get("structured_refs", []) if r.get("url") and "n8n.local" not in r["url"].lower() and r["url"].startswith("http")]
+    clean_urls = [u for u in source_urls if "n8n.local" not in u.lower() and u.startswith("http")]
     if "## References" not in report_text:
         if structured_refs:
             ref_lines = ["\n---\n## References\n"]
@@ -1744,12 +1807,26 @@ Research findings to compile into the report:
                 domain = r.get("domain", "")
                 if url not in seen:
                     seen.add(url)
-                    ref_lines.append(f'[^{rid}]: <a href="{url}" target="_blank">{domain}</a> — {url}')
+                    ref_lines.append(f'[^{rid}]: [{domain}]({url}) — *{domain}*')
         else:
             ref_lines = ["\n---\n## References\n"]
-            for i, url in enumerate(source_urls):
+            for i, url in enumerate(clean_urls):
                 ref_lines.append(f"[{i+1}] {url}")
         report_text = report_text + "\n\n" + "\n".join(ref_lines)
+
+    # Paragraph block deduplication
+    blocks = report_text.split("\n\n")
+    seen_h = set()
+    clean_b = []
+    for b in blocks:
+        st = b.strip()
+        if len(st) > 100:
+            norm = re.sub(r"\s+", " ", st.lower())[:200]
+            if norm in seen_h:
+                continue
+            seen_h.add(norm)
+        clean_b.append(b)
+    report_text = "\n\n".join(clean_b)
 
     record_node_exit(sid, "report")
     return {"report": report_text}
@@ -1765,6 +1842,17 @@ def evaluator_node(state: AgentState, config: RunnableConfig) -> Dict:
     record_node_entry(sid, "evaluator")
     emit_thought(config, "Extracting lessons learned...")
     print("=== Evaluator: Extracting Lessons Learned ===")
+    
+    # --- Execute Agent #6 (Quality Scorer ReAct Agent) & Agent #8 (Lesson Learner Agent) ---
+    try:
+        from agents.fleet import get_agent_fleet
+        fleet = get_agent_fleet()
+        ag6_res = fleet.execute_fleet_step(6, "Evaluate report quality scores", {"query": state.get("query", ""), "report_text": state.get("report", ""), "source_urls": state.get("source_urls", [])})
+        ag8_res = fleet.execute_fleet_step(8, "Extract lesson learned from run", {"query": state.get("query", "")})
+        print(f"  [Agent #6: {ag6_res.agent_name}] {ag6_res.summary}")
+        print(f"  [Agent #8: {ag8_res.agent_name}] {ag8_res.summary}")
+    except Exception as _ag_err:
+        print(f"  [Evaluator Agent Fleet Log]: {_ag_err}")
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are an evaluator. Review the original query and the final report.
 
@@ -2169,16 +2257,37 @@ def memory_update_node(state: AgentState, config: RunnableConfig) -> Dict:
     synthesis_results = state.get("synthesis_results") or []
     source_urls = state.get("source_urls") or []
     scored_chunks = state.get("scored_chunks") or []
-    # Build run transcript text for extraction
-    transcript_parts = [
-        f"Query: {query}",
-        f"Sub-questions: {json.dumps(state.get('sub_questions', []))}",
-        f"Report (first 4000 chars): {report[:4000]}",
-        f"Sources: {json.dumps(source_urls[:5])}",
-    ]
+    # Build run transcript text for extraction with error handling
+    transcript_parts = []
+    try:
+        transcript_parts.append(f"Query: {query}")
+    except Exception:
+        transcript_parts.append("Query: [ERROR RETRIEVING QUERY]")
+        
+    try:
+        transcript_parts.append(f"Sub-questions: {json.dumps(state.get('sub_questions', []))}")
+    except Exception:
+        transcript_parts.append("Sub-questions: [ERROR SERIALIZING]")
+        
+    try:
+        transcript_parts.append(f"Report (first 4000 chars): {report[:4000] if report else ''}")
+    except Exception:
+        transcript_parts.append("Report: [ERROR RETRIEVING REPORT]")
+        
+    try:
+        transcript_parts.append(f"Sources: {json.dumps(source_urls[:5])}")
+    except Exception:
+        transcript_parts.append("Sources: [ERROR SERIALIZING]")
+    
     # add synthesis snippets
-    for sr in synthesis_results[:3]:
-        transcript_parts.append(f"Synthesis for '{sr.get('sub_question','')[:80]}': {str(sr.get('answer',''))[:400]}")
+    try:
+        for sr in synthesis_results[:3]:
+            sub_q = sr.get('sub_question', 'Unknown')
+            answer = str(sr.get('answer', ''))
+            transcript_parts.append(f"Synthesis for '{sub_q[:80]}': {answer[:400]}")
+    except Exception:
+        transcript_parts.append("Synthesis: [ERROR PROCESSING]")
+        
     transcript = "\n\n".join(transcript_parts)
 
     # Category definitions with JSON schema and vault type mapping
@@ -2437,7 +2546,7 @@ Rules:
                         "status": "draft" if is_low else "active",
                         "confidence": conf,
                         "created": _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime()),
-                        "updated": _time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "updated": _time.strftime("%Y-%m-%dT%H:%M:%SZ", _time.gmtime()),
                         "version": 1,
                         "source_count": 0,
                         "agent": "memory",
@@ -2581,7 +2690,13 @@ Rules:
         from .memory_agent import create_note as _create
         # Temporarily raise threshold so run itself is not considered duplicate
         from .memory_agent import SIMILARITY_THRESHOLD as _old_thresh
-        import backend.agents.memory_agent as _ma
+        try:
+            import backend.agents.memory_agent as _ma
+        except ImportError:  # running with backend/ on sys.path (direct invocation)
+            import sys as _sys
+            _ma = _sys.modules.get("agents.memory_agent")
+            if _ma is None:
+                from . import memory_agent as _ma
         _orig_thresh = _ma.SIMILARITY_THRESHOLD
         _ma.SIMILARITY_THRESHOLD = 0.99
         try:

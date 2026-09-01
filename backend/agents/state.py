@@ -33,3 +33,7 @@ class AgentState(TypedDict):
     logs: Annotated[List[str], operator.add]
     active_node: str
     provenance: Dict[str, Any]
+    # Memory Update outputs (Prompt 7) — surfaced for downstream nodes/evidence
+    run_id: str
+    classification_table: List[Dict[str, Any]]
+    linked_notes: List[str]

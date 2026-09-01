@@ -23,6 +23,7 @@ import { defaultSchema } from "hast-util-sanitize";
 import { AnimatePresence, motion } from "framer-motion";
 import MetricsDashboard from "@/components/MetricsDashboard";
 import MemoryHealthDashboard from "@/components/MemoryHealthDashboard";
+import AgentWorkflowMatrix from "@/components/AgentWorkflowMatrix";
 import BackgroundCanvas from "@/components/BackgroundCanvas";
 import Link from "next/link";
 import { Brain, BrainCircuit, Sparkles } from "lucide-react";
@@ -32,7 +33,7 @@ import { Brain, BrainCircuit, Sparkles } from "lucide-react";
 // ============================================
 
 // Base site metadata
-const SITE_TITLE = "REX — Recursive Exploration eXplorer";
+const SITE_TITLE = "REX — 21-Agentic Deep Research System";
 const SITE_DESCRIPTION = "AI-powered deep research multi-agent system that conducts comprehensive multi-source research with quality verification and citation tracking";
 const SITE_KEYWORDS = "deep research, AI research, multi-agent system, neuro-symbolic AI, quantum computing, automation, LLM research, quality verification, citation tracking";
 const SITE_AUTHOR = "REX Research System";
@@ -219,6 +220,8 @@ export default function Home() {
   const [showMetrics, setShowMetrics] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isCancelled, setIsCancelled] = useState(false);
+  const [startedTime, setStartedTime] = useState("");
+  const [runId, setRunId] = useState("");
 
   const [telemetryLogs, setTelemetryLogs] = useState<TelemetryLogEntry[]>([]);
 
@@ -318,6 +321,12 @@ export default function Home() {
     setIsCancelled(false);
     setTelemetryLogs([]);
     maxPhaseIdxRef.current = 0;
+
+    const now = new Date();
+    const formattedTime = now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const generatedRunId = `REX-RUN-${now.valueOf().toString().slice(-6)}`;
+    setStartedTime(formattedTime);
+    setRunId(generatedRunId);
 
     addTelemetryLog(`Initializing REX multi-agent pipeline for query: "${activeQuery}"`, "Planning");
     addTelemetryLog("Decomposing query into multi-dimensional sub-questions...", "Planning");
@@ -528,8 +537,8 @@ return (
                   href="/brain"
                   className="flex items-center gap-1.5 rounded-full border border-white/20 bg-zinc-950/80 px-3.5 py-1.5 text-zinc-300 hover:text-white hover:border-white transition shadow-md"
                 >
-                  <Brain className="h-3.5 w-3.5 text-[#E8D5B7]" />
-                  Neural Brain Visualizer
+                  <Brain className="h-3.5 w-3.5 text-zinc-400" />
+                  Neural Brain
                 </Link>
                 <Link
                   href="/learning-history"
@@ -603,142 +612,27 @@ return (
           </section>
         )}
 
-        {/* ACTIVE PIPELINE RUNNING MODE */}
+        {/* ACTIVE PIPELINE RUNNING MODE: 21-AGENT WORKFLOW MATRIX */}
         <AnimatePresence>
           {isLoading && (
             <motion.section
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="flex flex-col gap-6 rounded-2xl border border-white/30 bg-zinc-950 p-6 md:p-8 shadow-[0_15px_45px_rgba(0,0,0,0.9)]"
+              className="flex flex-col gap-6"
             >
-              {/* Progress Overview Header */}
-              <div className="rounded-xl border border-white/20 bg-black p-6 space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-white font-mono">
-                      <ListTodo className="h-4 w-4" />
-                      Research Pipeline Progress
-                    </div>
-                    <div className="text-xl font-bold text-white font-display flex items-center gap-2">
-                      <span>{activePhase.label}</span>
-                      <Loader2 className="h-4 w-4 animate-spin text-white" />
-                    </div>
-                    <p className="text-xs text-zinc-400">{activePhase.desc}</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <div className="text-right">
-                      <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-mono">Completion</div>
-                      <div className="text-3xl font-extrabold text-white font-mono">{Math.round(progress)}%</div>
-                    </div>
-                    {!isCancelled && (
-                      <button
-                        onClick={cancelResearch}
-                        className="flex items-center gap-1.5 rounded-lg border border-white bg-white/20 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-white hover:text-black transition duration-200"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <rect x="1" y="1" width="10" height="10" rx="2" fill="currentColor" />
-                        </svg>
-                        Stop
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="space-y-1.5">
-                  <div className="h-3.5 overflow-hidden rounded-full bg-black border border-white/30 p-0.5">
-                    <div
-                      className="h-full rounded-full bg-white transition-[width] duration-300 ease-out shadow-[0_0_15px_rgba(255,255,255,0.4)]"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] text-zinc-400 font-mono">
-                    <span>Phase: {activePhase.label}</span>
-                    <span>{progress >= 98 ? "Finalizing report output..." : `${Math.round(progress)}% completed`}</span>
-                  </div>
-                </div>
-
-                {/* 9 RESEARCH PHASES GRID */}
-                <div className="grid gap-2.5 sm:grid-cols-3 pt-2">
-                  {RESEARCH_PHASES.map((phase, idx) => {
-                    const isActivePhase = phase.id === activeNode;
-                    const isDonePhase = completedNodes.has(phase.id);
-                    const phaseFloor = PROGRESS_FLOORS[phase.id];
-
-                    return (
-                      <div
-                        key={phase.id}
-                        className={`flex items-start gap-3 rounded-xl border p-3 transition-all duration-300 ${
-                          isActivePhase
-                            ? "border-white bg-white/20 text-white shadow-[0_0_20px_rgba(255,255,255,0.3)]"
-                            : isDonePhase
-                            ? "border-white/50 bg-white/10 text-white"
-                            : "border-white/15 bg-black/40 text-zinc-500 opacity-60"
-                        }`}
-                      >
-                        <div className="mt-0.5 shrink-0 font-mono text-xs font-bold">
-                          {isDonePhase ? (
-                            <CheckCircle2 className="h-4 w-4 text-white" />
-                          ) : isActivePhase ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-white" />
-                          ) : (
-                            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/30 text-[10px]">
-                              {idx + 1}
-                            </span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1 space-y-0.5">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-xs font-bold tracking-tight font-display">{phase.label}</span>
-                            <span className="text-[9px] uppercase font-mono tracking-wider">
-                              {isDonePhase ? "Done" : isActivePhase ? `${phaseFloor}%` : "Queued"}
-                            </span>
-                          </div>
-                          <p className="text-[10px] leading-tight text-zinc-400 line-clamp-1">{phase.desc}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* REAL-TIME LIVE AGENT REASONING TELEMETRY WINDOW */}
-              <div className="rounded-xl border border-white/20 bg-black p-5 space-y-3 shadow-inner">
-                <div className="flex items-center justify-between border-b border-white/15 pb-2.5">
-                  <div className="flex items-center gap-2">
-                    <Terminal className="h-4 w-4 text-white" />
-                    <span className="text-xs font-bold font-display uppercase tracking-wider text-white">
-                      Live Agent Reasoning Telemetry
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-mono font-bold text-white border border-white/30">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
-                    LIVE STREAMING
-                  </div>
-                </div>
-
-                <div
-                  ref={telemetryContainerRef}
-                  className="h-44 overflow-y-auto font-mono text-xs space-y-2 custom-scrollbar p-1"
-                >
-                  {telemetryLogs.length === 0 ? (
-                    <div className="flex h-full items-center justify-center text-xs text-zinc-500">
-                      Connecting to agent event stream...
-                    </div>
-                  ) : (
-                    telemetryLogs.map((log, i) => (
-                      <div key={i} className="flex items-start gap-2.5 text-zinc-300 leading-relaxed border-b border-white/10 pb-1.5">
-                        <span className="text-[10px] text-zinc-500 shrink-0 pt-0.5">[{log.timestamp}]</span>
-                        <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white border border-white/20 shrink-0">
-                          {log.stage}
-                        </span>
-                        <span className="text-xs text-white">{log.message}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+              {/* Movie-Style Single Active Agent Spotlight & Ordered Telemetry Stream */}
+              <AgentWorkflowMatrix
+                activeNode={activeNode}
+                completedNodes={completedNodes}
+                progress={progress}
+                telemetryLogs={telemetryLogs}
+                queryTitle={query}
+                startedTime={startedTime}
+                researchId={sessionId || runId}
+                onStop={cancelResearch}
+                isCancelled={isCancelled}
+              />
             </motion.section>
           )}
         </AnimatePresence>

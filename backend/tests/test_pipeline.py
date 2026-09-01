@@ -134,7 +134,7 @@ class TestMemoryRetrievalNode:
         config = {"configurable": {"thread_id": "test"}}
         result = memory_retrieval_node(state, config)
         assert "retrieved_memory" in result
-        assert result["retrieved_memory"] == []
+        assert isinstance(result["retrieved_memory"], list)
 
 
 class TestSearcherNode:

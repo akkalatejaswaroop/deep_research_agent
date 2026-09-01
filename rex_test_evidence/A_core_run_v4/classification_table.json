@@ -1,0 +1,58 @@
+[
+  {
+    "item": "Fact extracted from run for query 'How are solid-state batteries being improved ",
+    "category": "facts",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "FCT-01J8Y000000000000000000022",
+    "confidence": 0.65,
+    "reason": "score 0.62, matched FCT-01J8Y000000000000000000022"
+  },
+  {
+    "item": "[INSUFFICIENT EVIDENCE] No relevant sources were retrieved for this sub-question",
+    "category": "claims",
+    "classification": "DUPLICATE",
+    "resulting_note_id": "none",
+    "confidence": 0.6,
+    "reason": "score 0.90, matched CLM-01J8Y3B511ABB0D3E0A297B109"
+  },
+  {
+    "item": "Synthesis timed out; using cached or fallback information.",
+    "category": "claims",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "CLM-01J8YC511E44D081098E5606CE",
+    "confidence": 0.6,
+    "reason": "score 0.64, matched CLM-01J8Y000000000000000000101"
+  },
+  {
+    "item": "https://www.ufinebattery.com/blog/solid-",
+    "category": "sources",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "SRC-01J8Y379BF62AB5F967F184B4D",
+    "confidence": 0.6,
+    "reason": "score 0.61, matched SRC-01J8Y000000000000000000008"
+  },
+  {
+    "item": "solid-state-vs-lithium-ion-future-energy",
+    "category": "sources",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "SRC-01J8Y379BF62AB5F967F184B4D",
+    "confidence": 0.6,
+    "reason": "score 0.75, matched SRC-01J8Y379BF62AB5F967F184B4D"
+  },
+  {
+    "item": "Decompose broad queries into specific sub-questions before searching",
+    "category": "lessons",
+    "classification": "UPDATE",
+    "resulting_note_id": "LSN-01J8Y9F0A0D381A0FC8C70D4FC",
+    "confidence": 0.7,
+    "reason": "score 0.83, matched LSN-01J8Y3BD2174ECEC9186F76F67"
+  },
+  {
+    "item": "What are long-term implications of How are solid-state batteries being impr?",
+    "category": "unanswered_questions",
+    "classification": "DUPLICATE",
+    "resulting_note_id": "none",
+    "confidence": 0.5,
+    "reason": "score 0.93, matched QST-01J8Y2F1F0A44AFCBA8EBC2ACE"
+  }
+]

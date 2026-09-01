@@ -1,0 +1,126 @@
+{
+  "label": "A_core_run_v3",
+  "session_id": "rextest-A_core_run_v3-20260826T060523",
+  "vault_path": "D:\\deep_research_agent\\rex_test_vault",
+  "query": "How are solid-state batteries being improved for electric vehicles?",
+  "wall_clock_seconds": 565.6,
+  "node_sequence": [
+    "memory_retrieval",
+    "planner",
+    "searcher",
+    "filter",
+    "synthesis",
+    "gap_detector",
+    "citation_mapper",
+    "report_node_id",
+    "evaluator",
+    "memory_update",
+    "evolution_analysis"
+  ],
+  "spec_node_order": [
+    "memory_retrieval",
+    "planner",
+    "searcher",
+    "filter",
+    "synthesis",
+    "gap_detector",
+    "citation_mapper",
+    "report_node_id",
+    "evaluator",
+    "memory_update",
+    "evolution_analysis"
+  ],
+  "order_matches_spec_linear": true,
+  "errors": [],
+  "exit_code": 0,
+  "vault_head_before": null,
+  "run_id": null,
+  "linked_notes": [],
+  "classification_table": [],
+  "memory_context_meta": {
+    "query": "How are solid-state batteries being improved for electric vehicles?",
+    "token_budget": 3000,
+    "token_count": 184,
+    "item_count": 5,
+    "scoring": "embedding_cosine * recency_decay * confidence",
+    "generated_at": "2026-08-26T06:05:56.036768+00:00"
+  },
+  "memory_context_items": {
+    "related_concepts": [],
+    "prior_questions": [
+      {
+        "id": "QST-01J8Y000000000000000000020",
+        "title": "What is long-term stability of Majorana modes at scale?",
+        "bucket": "prior_questions",
+        "score": 0.31,
+        "tokens": 31
+      }
+    ],
+    "relevant_claims": [
+      {
+        "id": "CLM-01J8Y000000000000000000002",
+        "title": "Braiding Majorana zero modes enables 99.9% fidelity gates",
+        "bucket": "relevant_claims",
+        "score": 0.3131,
+        "tokens": 28
+      }
+    ],
+    "prior_answers": [],
+    "supporting_sources": [
+      {
+        "id": "SRC-01J8Y000000000000000000008",
+        "title": "00_System/Examples/SRC-01J8Y000000000000000000008__alicea-2011-majorana-nanowired-paper.md",
+        "bucket": "supporting_sources",
+        "score": 0.5029,
+        "tokens": 58
+      }
+    ],
+    "contradictory_sources": [],
+    "prior_experiments": [
+      {
+        "id": "EXP-01J8Y000000000000000000009",
+        "title": "Topological gap protocol at 25 mK — device D07",
+        "bucket": "prior_experiments",
+        "score": 0.2744,
+        "tokens": 31
+      }
+    ],
+    "prior_failures": [],
+    "lessons": [],
+    "agent_strategy_notes": [
+      {
+        "id": "LSN-01J8Y000000000000000000012",
+        "title": "Keep Al deposition rate below 0.1 nm/s to avoid local heating",
+        "bucket": "agent_strategy_notes",
+        "score": 0.3807,
+        "tokens": 36
+      }
+    ]
+  },
+  "source_urls": [
+    "https://arxiv.org/",
+    "https://info.arxiv.org/about/index.html",
+    "https://blog.arxiv.org/",
+    "https://en.wikipedia.org/wiki/Solid-state_battery",
+    "https://www.sciencedirect.com/science/article/pii/S2772569324000902",
+    "https://www.caranddriver.com/features/a63306863/solid-state-batteries-evs-explained/",
+    "https://standards.ieee.org/",
+    "https://www.tiktok.com/discover/solid-state-battery-mercedes"
+  ],
+  "sub_questions": [
+    "How are solid-state batteries improve in terms of core mechanisms and technical definitions? (see [[CLM-01J8Y000000000000000000002]] — already established, skip re-deriving if verified)",
+    "What are the empirical data, benchmarks, and real-world statistics on solid-state battery improvements for EVs?"
+  ],
+  "structured_refs_count": 0,
+  "feedback": "To improve the search or synthesis in the future, it is crucial to focus on obtaining more empirical data specifically related to solid-state battery improvements for electric vehicles. This can be achieved by expanding the scope of sources to include recent academic journals, industry reports, and case studies focused on EVs.",
+  "is_valid_gap": true,
+  "gap_iterations": 1,
+  "prod_hashes_after": {
+    "backend/agents/graph.py": "3342a08ee419a4e8d87838b14e4f784844f0bd2321d33b45c9dcacafd137c10c",
+    "backend/agents/memory_agent.py": "25134a45acabf5940908ec8d0a1fd0146780e5c26de5ba7d0c9fda24e97cdbe1",
+    "backend/agents/ga_workflow.py": "d353b755c4b984be173be6ab198f85c910ddf37a1d239daf2fae4e6b9f13f5db",
+    "backend/agents/consolidation_agent.py": "494ccbf6dac2d8789987892b01fe68b8effa4fb2bc97130e0841da1585dd7218",
+    "backend/agents/state.py": "7eba5344e66b486cc4fd142ceff70b23dc7f33bf25aae2044b9082efcdfd0329"
+  },
+  "finished_at": "2026-08-26T06:14:49.142292+00:00"
+}

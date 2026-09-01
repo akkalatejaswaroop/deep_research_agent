@@ -24,14 +24,23 @@ import {
   Pause,
   CheckCircle2,
   BrainCircuit,
-  Workflow
+  Workflow,
+  ExternalLink,
+  GitCommit,
+  GitBranch,
+  X,
+  Target,
+  Clock,
+  Check,
+  AlertTriangle,
+  RotateCcw,
+  Sliders,
+  ZoomIn,
+  ZoomOut,
+  Maximize
 } from "lucide-react";
 import Link from "next/link";
 import BackgroundCanvas from "@/components/BackgroundCanvas";
-
-// ============================================================================
-// TYPES & DATA STRUCTURES FOR NEURAL GRAPH
-// ============================================================================
 
 export type GraphViewMode = "OBSIDIAN" | "AGENTS" | "SYNTHESIS";
 
@@ -41,8 +50,15 @@ export interface GraphNode {
   category: "core_agent" | "enhancement_agent" | "infra_agent" | "ai_ml" | "quantum" | "biotech" | "systems" | "energy";
   x: number;
   y: number;
+  z?: number;
   vx: number;
   vy: number;
+  vz?: number;
+  screenX?: number;
+  screenY?: number;
+  screenScale?: number;
+  screenZ?: number;
+  isNew?: boolean;
   radius: number;
   color: string;
   confidence: number;
@@ -53,6 +69,15 @@ export interface GraphNode {
   description: string;
   model?: string;
   vectorId?: string;
+  type?: string;
+  status?: string;
+  tier?: string;
+  created?: string;
+  updated?: string;
+  version?: number;
+  source_count?: number;
+  agent?: string;
+  path?: string;
 }
 
 export interface GraphEdge {
@@ -64,796 +89,924 @@ export interface GraphEdge {
 }
 
 // ----------------------------------------------------------------------------
-// 1. OBSIDIAN KNOWLEDGE GRAPH DATA (32 Nodes, 45 Edges)
+// INITIAL SEED NODES & EDGES (Prompt 14 Degree Sizing + Prompt 14 Tier Coloring)
 // ----------------------------------------------------------------------------
-const OBSIDIAN_NODES: GraphNode[] = [
-  { id: "core_root", label: "REX Core Neural Engine", category: "core_agent", x: 0, y: 0, vx: 0, vy: 0, radius: 24, color: "#E8D5B7", confidence: 99.8, weight: 1.0, recency: "Just now", cluster: "Root Memory", subtopics: ["LangGraph Engine", "FastAPI Orchestrator", "Celery Task Queue"], description: "Central state machine coordinating 21 multi-agent pipelines and pgvector long-term memory." },
-  
-  // AI/ML Cluster
-  { id: "llm_opt", label: "LLM Prompt Decomposition", category: "ai_ml", x: -220, y: -140, vx: 0, vy: 0, radius: 16, color: "#C2410C", confidence: 97.4, weight: 0.88, recency: "2m ago", cluster: "Reasoning", subtopics: ["Hierarchical Prompts", "Task Framing", "phi3:mini"], description: "Decomposes complex queries into 8+ orthogonal sub-question DAGs." },
-  { id: "dag_planner", label: "Strategy DAG Planning", category: "ai_ml", x: -340, y: -220, vx: 0, vy: 0, radius: 14, color: "#C2410C", confidence: 98.1, weight: 0.85, recency: "5m ago", cluster: "Reasoning", subtopics: ["Execution Trees", "Dependency Order"], description: "Generates execution sequence for parallel sub-question workers." },
-  { id: "mmr_filter", label: "MMR Semantic Relevance", category: "ai_ml", x: -160, y: -280, vx: 0, vy: 0, radius: 14, color: "#C2410C", confidence: 96.9, weight: 0.82, recency: "12m ago", cluster: "Reasoning", subtopics: ["Cosine Distance", "Redundancy Penalization"], description: "Maximal Marginal Relevance filter preventing duplicated web snippet context." },
-  { id: "eval_judge", label: "LLM-as-Judge 5D Evaluator", category: "ai_ml", x: -380, y: -100, vx: 0, vy: 0, radius: 15, color: "#C2410C", confidence: 99.1, weight: 0.91, recency: "1m ago", cluster: "Reasoning", subtopics: ["Relevance", "Depth", "Novelty", "Coherence", "Citations"], description: "Scores completed whitepapers on 5 dimensions and persists operational lessons." },
-
-  // Systems & Memory Cluster
-  { id: "pgvector_mem", label: "768d Cosine Vector Recall", category: "systems", x: 200, y: -160, vx: 0, vy: 0, radius: 18, color: "#B45309", confidence: 99.4, weight: 0.95, recency: "Just now", cluster: "Memory", subtopics: ["Supabase pgvector", "hnsw index", "Lesson Embeddings"], description: "Cross-session vector memory storing historical research trajectories and failure modes." },
-  { id: "redis_cache", label: "Multi-Tier L2 Redis Cache", category: "systems", x: 340, y: -220, vx: 0, vy: 0, radius: 14, color: "#B45309", confidence: 98.9, weight: 0.79, recency: "3m ago", cluster: "Memory", subtopics: ["1h TTL", "File Fallback", "Cache Warmup"], description: "Prevents duplicate web scraping calls by serving cached scraping buffers." },
-  { id: "session_db", label: "State Persistence Manager", category: "systems", x: 300, y: -80, vx: 0, vy: 0, radius: 13, color: "#B45309", confidence: 97.8, weight: 0.76, recency: "8m ago", cluster: "Memory", subtopics: ["State Snapshots", "Resume Support"], description: "Persists research graph state every 30 seconds for background execution." },
-
-  // Web Scraping & Domain Intelligence Cluster
-  { id: "multi_scraper", label: "4-Tier Parallel Scraper", category: "core_agent", x: -180, y: 160, vx: 0, vy: 0, radius: 17, color: "#4D7C5F", confidence: 96.5, weight: 0.89, recency: "Just now", cluster: "Web Index", subtopics: ["Trafilatura", "BS4", "Jina Reader", "Playwright"], description: "Harvests live un-cached web pages using 4-tier fallback scraper pipeline." },
-  { id: "domain_intel", label: "Domain Credibility Tiering", category: "core_agent", x: -320, y: 220, vx: 0, vy: 0, radius: 14, color: "#4D7C5F", confidence: 95.8, weight: 0.84, recency: "4m ago", cluster: "Web Index", subtopics: ["Peer-Reviewed", ".edu/.gov", "Dynamic Blocklist"], description: "Ranks domain authority and downweights commercial SEO content." },
-  { id: "citation_map", label: "URL Canonicalizer & Binder", category: "core_agent", x: -280, y: 100, vx: 0, vy: 0, radius: 15, color: "#4D7C5F", confidence: 99.6, weight: 0.92, recency: "1m ago", cluster: "Web Index", subtopics: ["Numerical Cross-Check", "Markdown Anchors"], description: "Verifies domain URLs and binds inline numerical [N] citations." },
-
-  // Emerging Trends & Science Clusters
-  { id: "quantum_ssb", label: "Solid-State Battery Electrochemistry", category: "energy", x: 180, y: 180, vx: 0, vy: 0, radius: 15, color: "#D4A853", confidence: 98.3, weight: 0.87, recency: "15m ago", cluster: "Research Target", subtopics: ["Sulfide Electrolyte", "Lithium Dendrites", "450 Wh/kg"], description: "Deep analysis cluster on EV battery chemistry breakthroughs." },
-  { id: "biotech_alpha", label: "AlphaFold Structural Mechanics", category: "biotech", x: 300, y: 240, vx: 0, vy: 0, radius: 13, color: "#9A8B73", confidence: 97.1, weight: 0.81, recency: "45m ago", cluster: "Research Target", subtopics: ["pLDDT Metrics", "Proteomics", "Ligand Binding"], description: "Biomedical protein folding research memory payload." },
-  { id: "gap_auditor", label: "Coverage Auditor & Re-Search", category: "core_agent", x: 0, y: 280, vx: 0, vy: 0, radius: 17, color: "#E8D5B7", confidence: 99.0, weight: 0.94, recency: "Just now", cluster: "Recursive Loop", subtopics: ["Zero-Shot Audit", "Secondary Query Generator"], description: "Evaluates whether research sub-questions were fully answered, triggering recursive search loops." },
+const SEED_NODES: GraphNode[] = [
+  {
+    id: "SYS-01J8X000000000000000000001",
+    label: "REX Core Neural Schema",
+    type: "system",
+    status: "verified",
+    tier: "hot",
+    confidence: 1.0,
+    created: "2026-08-25",
+    updated: "2026-08-29",
+    category: "core_agent",
+    x: 0, y: 0, z: 0, vx: 0, vy: 0, radius: 24,
+    color: "#6366F1", // Tier 1: Core System
+    weight: 1.0, recency: "Live Vault", cluster: "00_System",
+    subtopics: ["Vault Law", "Optimistic Locking", "22 Rules"],
+    description: "Central vault law and schema contract governing all 18 note types.",
+    path: "00_System/REX-Knowledge-Schema.md"
+  },
+  {
+    id: "CLM-01J8Y000000000000000000002",
+    label: "Surface Code Braiding Fidelity > 99%",
+    type: "claim",
+    status: "verified",
+    tier: "hot",
+    confidence: 0.94,
+    created: "2026-08-26",
+    updated: "2026-08-29",
+    category: "ai_ml",
+    x: 180, y: -40, z: 20, vx: 0, vy: 0, radius: 20,
+    color: "#EF4444", // Tier 2: High-Value Verified Claim
+    weight: 0.92, recency: "2h ago", cluster: "02_Knowledge",
+    subtopics: ["Majorana Zero Modes", "Topological Gap", "Anisotropy"],
+    description: "Measured topological gap threshold for fault-tolerant surface code braiding.",
+    path: "02_Knowledge/Claims/CLM-01J8Y000000000000000000002__braiding-fidelity.md"
+  },
+  {
+    id: "FCT-01J8Y000000000000000000001",
+    label: "Quantized ZBP in InAs-Al Nanowire",
+    type: "fact",
+    status: "verified",
+    tier: "hot",
+    confidence: 0.98,
+    created: "2026-08-25",
+    updated: "2026-08-28",
+    category: "ai_ml",
+    x: 210, y: 30, z: -30, vx: 0, vy: 0, radius: 18,
+    color: "#EF4444", // Tier 2: Verified Fact
+    weight: 0.95, recency: "1d ago", cluster: "02_Knowledge",
+    subtopics: ["Zero-Bias Conductance", "2e^2/h", "Tunneling"],
+    description: "Empirically verified conductance peak quantized at 2e^2/h at 25mK.",
+    path: "02_Knowledge/Facts/FCT-01J8Y000000000000000000001__quantized-zbp.md"
+  },
+  {
+    id: "CON-01J8Y000000000000000000004",
+    label: "Non-Abelian Anyon Exchange Statistics",
+    type: "concept",
+    status: "active",
+    tier: "warm",
+    confidence: 0.85,
+    created: "2026-08-26",
+    updated: "2026-08-27",
+    category: "systems",
+    x: 90, y: 150, z: 80, vx: 0, vy: 0, radius: 15,
+    color: "#E2E8F0", // Tier 3: General Active
+    weight: 0.82, recency: "2d ago", cluster: "01_Research",
+    subtopics: ["Braid Group Representation", "Unitary Matrices"],
+    description: "Mathematical formulation of non-commutative braid statistics in 2D systems.",
+    path: "01_Research/Concepts/CON-01J8Y000000000000000000004__non-abelian-anyon.md"
+  },
+  {
+    id: "SRC-01J8Y000000000000000000008",
+    label: "Alicea et al. 2011 Majorana Nanowires",
+    type: "source",
+    status: "active",
+    tier: "cold",
+    confidence: 0.99,
+    created: "2026-08-24",
+    updated: "2026-08-24",
+    category: "infra_agent",
+    x: 290, y: -120, z: -90, vx: 0, vy: 0, radius: 11,
+    color: "#F59E0B", // Tier 4: Peripheral Source Node
+    weight: 0.75, recency: "5d ago", cluster: "03_Sources",
+    subtopics: ["Phys. Rev. B", "DOI: 10.1103/PhysRevB.84.205101"],
+    description: "Seminal paper outlining topological superconductivity in semiconductor-superconductor heterostructures.",
+    path: "03_Sources/Papers/SRC-01J8Y000000000000000000008__alicea-2011.md"
+  },
+  {
+    id: "CTR-01J8Y000000000000000000018",
+    label: "Contradiction: Braiding vs Trivial Andreev",
+    type: "contradiction",
+    status: "disputed",
+    tier: "hot",
+    confidence: 0.65,
+    created: "2026-08-27",
+    updated: "2026-08-29",
+    category: "enhancement_agent",
+    x: -80, y: -160, z: -50, vx: 0, vy: 0, radius: 16,
+    color: "#EF4444", // Disputed state
+    weight: 0.88, recency: "Just now", cluster: "05_Evolution",
+    subtopics: ["Trivial Andreev Bound State", "Disorder Mimicry"],
+    description: "Active dispute: whether zero-bias conductance peak is topological or disorder-induced Andreev state.",
+    path: "05_Evolution/Contradictions/CTR-01J8Y000000000000000000018__contradiction.md"
+  }
 ];
 
-const OBSIDIAN_EDGES: GraphEdge[] = [
-  { id: "e1", source: "core_root", target: "llm_opt", strength: 0.9 },
-  { id: "e2", source: "core_root", target: "pgvector_mem", strength: 0.95 },
-  { id: "e3", source: "core_root", target: "multi_scraper", strength: 0.9 },
-  { id: "e4", source: "core_root", target: "gap_auditor", strength: 0.95 },
-  { id: "e5", source: "llm_opt", target: "dag_planner", strength: 0.8 },
-  { id: "e6", source: "llm_opt", target: "mmr_filter", strength: 0.75 },
-  { id: "e7", source: "dag_planner", target: "eval_judge", strength: 0.7 },
-  { id: "e8", source: "pgvector_mem", target: "redis_cache", strength: 0.85 },
-  { id: "e9", source: "pgvector_mem", target: "session_db", strength: 0.8 },
-  { id: "e10", source: "multi_scraper", target: "domain_intel", strength: 0.85 },
-  { id: "e11", source: "multi_scraper", target: "citation_map", strength: 0.88 },
-  { id: "e12", source: "gap_auditor", target: "quantum_ssb", strength: 0.75 },
-  { id: "e13", source: "gap_auditor", target: "biotech_alpha", strength: 0.7 },
-  { id: "e14", source: "eval_judge", target: "pgvector_mem", strength: 0.9 },
-  { id: "e15", source: "citation_map", target: "gap_auditor", strength: 0.82 },
+const SEED_EDGES: GraphEdge[] = [
+  { id: "e1", source: "SYS-01J8X000000000000000000001", target: "CLM-01J8Y000000000000000000002", strength: 0.9, label: "enforces" },
+  { id: "e2", source: "CLM-01J8Y000000000000000000002", target: "FCT-01J8Y000000000000000000001", strength: 0.95, label: "supports" },
+  { id: "e3", source: "CLM-01J8Y000000000000000000002", target: "SRC-01J8Y000000000000000000008", strength: 0.88, label: "cites" },
+  { id: "e4", source: "CON-01J8Y000000000000000000004", target: "CLM-01J8Y000000000000000000002", strength: 0.75, label: "derived_from" },
+  { id: "e5", source: "CTR-01J8Y000000000000000000018", target: "CLM-01J8Y000000000000000000002", strength: 0.9, label: "contradicts" },
+  { id: "e6", source: "CTR-01J8Y000000000000000000018", target: "FCT-01J8Y000000000000000000001", strength: 0.85, label: "disputes" }
 ];
 
-// ----------------------------------------------------------------------------
-// 2. 21-AGENT NEURAL PIPELINE GRAPH DATA
-// ----------------------------------------------------------------------------
-const AGENT_NODES: GraphNode[] = [
-  // Core Pipeline (7)
-  { id: "a1", label: "1. Query Decomposer", category: "core_agent", model: "phi3:mini", x: -350, y: -180, vx: 0, vy: 0, radius: 16, color: "#E8D5B7", confidence: 99.2, weight: 0.95, recency: "Core", cluster: "Pipeline", subtopics: ["Query Parsing", "Sub-questions"], description: "Breaks complex research prompts into 8+ analytical sub-questions." },
-  { id: "a2", label: "2. Research Orchestrator", category: "core_agent", model: "qwen2.5:3b", x: -220, y: -180, vx: 0, vy: 0, radius: 17, color: "#E8D5B7", confidence: 99.5, weight: 0.98, recency: "Core", cluster: "Pipeline", subtopics: ["Multi-Strategy Search", "Budget Manager"], description: "Coordinates multi-index web searches and manages search budget iterations." },
-  { id: "a3", label: "3. Multi-Source Scraper", category: "core_agent", model: "Deterministic", x: -90, y: -180, vx: 0, vy: 0, radius: 16, color: "#E8D5B7", confidence: 97.9, weight: 0.92, recency: "Core", cluster: "Pipeline", subtopics: ["Trafilatura", "BS4", "Playwright"], description: "4-tier fallback scraper with SQLite caching and anti-blocking rotation." },
-  { id: "a4", label: "4. Domain Intelligence", category: "core_agent", model: "Rule-Based", x: 40, y: -180, vx: 0, vy: 0, radius: 15, color: "#E8D5B7", confidence: 96.8, weight: 0.86, recency: "Core", cluster: "Pipeline", subtopics: ["Domain Tiers", "Dynamic Blocklist"], description: "Live domain credibility scoring and SEO fluff filter." },
-  { id: "a5", label: "5. Citation Verifier", category: "core_agent", model: "phi3:mini", x: 170, y: -180, vx: 0, vy: 0, radius: 16, color: "#E8D5B7", confidence: 99.4, weight: 0.94, recency: "Core", cluster: "Pipeline", subtopics: ["Numeric Claims", "Entity Matching"], description: "Cross-checks numeric claims and entity references against source text." },
-  { id: "a6", label: "6. Quality Scorer", category: "core_agent", model: "phi3:mini", x: 300, y: -180, vx: 0, vy: 0, radius: 16, color: "#E8D5B7", confidence: 98.7, weight: 0.91, recency: "Core", cluster: "Pipeline", subtopics: ["5D Metrics", "Quality Index"], description: "Computes 5-dimension quality scores and triggers regeneration if overall < 7/10." },
-  { id: "a7", label: "7. Coherence Auditor", category: "core_agent", model: "phi3:mini", x: 420, y: -180, vx: 0, vy: 0, radius: 15, color: "#E8D5B7", confidence: 97.6, weight: 0.88, recency: "Core", cluster: "Pipeline", subtopics: ["Heading Hierarchy", "Transition Density"], description: "Analyzes markdown flow, list item ratios, and heading structure." },
-
-  // Enhancement Agents (8)
-  { id: "a8", label: "8. Lesson Learner", category: "enhancement_agent", model: "phi3:mini", x: -350, y: 20, vx: 0, vy: 0, radius: 15, color: "#C2410C", confidence: 98.4, weight: 0.89, recency: "Enhance", cluster: "Self-Improvement", subtopics: ["Supabase Vector DB", "Prior Lessons"], description: "Extracts operational lessons from evaluator output and persists to pgvector." },
-  { id: "a9", label: "9. Gap Analyzer", category: "enhancement_agent", model: "phi3:mini", x: -220, y: 20, vx: 0, vy: 0, radius: 16, color: "#C2410C", confidence: 99.0, weight: 0.93, recency: "Enhance", cluster: "Self-Improvement", subtopics: ["Topic Gap Audit", "Recursive Loop"], description: "Identifies missing research aspects and generates secondary sub-queries." },
-  { id: "a10", label: "10. Repetition Detector", category: "enhancement_agent", model: "Deterministic", x: -90, y: 20, vx: 0, vy: 0, radius: 14, color: "#C2410C", confidence: 96.2, weight: 0.81, recency: "Enhance", cluster: "Self-Improvement", subtopics: ["Cross-section Sim", "Redundancy Penalization"], description: "Detects near-duplicate sections and triggers source diversification." },
-  { id: "a11", label: "11. Tone & Style Adjuster", category: "enhancement_agent", model: "phi3:mini", x: 40, y: 20, vx: 0, vy: 0, radius: 14, color: "#C2410C", confidence: 97.5, weight: 0.83, recency: "Enhance", cluster: "Self-Improvement", subtopics: ["Brand Voice", "Formality Check"], description: "Optimizes whitepaper tone and formatting consistency for targeted audiences." },
-  { id: "a12", label: "12. Fact Checker", category: "enhancement_agent", model: "phi3:mini", x: 170, y: 20, vx: 0, vy: 0, radius: 15, color: "#C2410C", confidence: 98.9, weight: 0.90, recency: "Enhance", cluster: "Self-Improvement", subtopics: ["Evidence Verification", "Fact Audits"], description: "Generates Evidence Verification Notes section detailing claim confidence." },
-  { id: "a13", label: "13. Source Diversifier", category: "enhancement_agent", model: "qwen2.5:3b", x: 300, y: 20, vx: 0, vy: 0, radius: 15, color: "#C2410C", confidence: 97.3, weight: 0.85, recency: "Enhance", cluster: "Self-Improvement", subtopics: ["Domain Triangulation", "Alternative APIs"], description: "Searches secondary search providers to triangulate evidence claims." },
-  { id: "a14", label: "14. Export Specialist", category: "enhancement_agent", model: "Formatting Engine", x: 420, y: 20, vx: 0, vy: 0, radius: 14, color: "#C2410C", confidence: 99.8, weight: 0.92, recency: "Enhance", cluster: "Self-Improvement", subtopics: ["Styled PDF", "Markdown", "JSON", "HTML"], description: "Compiles whitepapers into professional PDF, Markdown, JSON, and HTML." },
-
-  // Infrastructure Agents (6)
-  { id: "a15", label: "15. Redis Cache Agent", category: "infra_agent", model: "In-Memory Cache", x: -280, y: 200, vx: 0, vy: 0, radius: 15, color: "#B45309", confidence: 99.7, weight: 0.87, recency: "Infra", cluster: "Infrastructure", subtopics: ["Multi-Level Cache", "1h TTL"], description: "Manages Redis caching with disk fallback and automatic TTL eviction." },
-  { id: "a16", label: "16. Model Router", category: "infra_agent", model: "Dynamic Router", x: -140, y: 200, vx: 0, vy: 0, radius: 16, color: "#B45309", confidence: 99.1, weight: 0.94, recency: "Infra", cluster: "Infrastructure", subtopics: ["phi3 vs qwen2.5", "50% Cost Cut"], description: "Routes tasks dynamically between phi3:mini and qwen2.5:3b models." },
-  { id: "a17", label: "17. Session Manager", category: "infra_agent", model: "Celery + Redis", x: 0, y: 200, vx: 0, vy: 0, radius: 15, color: "#B45309", confidence: 98.6, weight: 0.89, recency: "Infra", cluster: "Infrastructure", subtopics: ["30s Checkpoint", "Background Runs"], description: "Persists state every 30s to enable interruptible research sessions." },
-  { id: "a18", label: "18. Monitoring Agent", category: "infra_agent", model: "Prometheus + LangSmith", x: 140, y: 200, vx: 0, vy: 0, radius: 15, color: "#B45309", confidence: 99.5, weight: 0.91, recency: "Infra", cluster: "Infrastructure", subtopics: ["Latency Metrics", "Health Alerts"], description: "Tracks real-time latency histograms and system health endpoints." },
-  { id: "a19", label: "19. Scheduler Agent", category: "infra_agent", model: "Celery Beat", x: 280, y: 200, vx: 0, vy: 0, radius: 14, color: "#B45309", confidence: 98.2, weight: 0.82, recency: "Infra", cluster: "Infrastructure", subtopics: ["Daily/Weekly Cron", "Automations"], description: "Handles recurring automated research schedules and triggers." },
-  { id: "a20", label: "20. Auto-Continue Agent", category: "infra_agent", model: "phi3:mini", x: 400, y: 200, vx: 0, vy: 0, radius: 15, color: "#B45309", confidence: 98.8, weight: 0.88, recency: "Infra", cluster: "Infrastructure", subtopics: ["Seamless Gap Resolution"], description: "Triggers recursive research passes autonomously when gaps exist." },
-];
-
-const AGENT_EDGES: GraphEdge[] = [
-  { id: "ae1", source: "a1", target: "a2", strength: 0.95 },
-  { id: "ae2", source: "a2", target: "a3", strength: 0.95 },
-  { id: "ae3", source: "a3", target: "a4", strength: 0.9 },
-  { id: "ae4", source: "a4", target: "a5", strength: 0.88 },
-  { id: "ae5", source: "a5", target: "a6", strength: 0.92 },
-  { id: "ae6", source: "a6", target: "a7", strength: 0.85 },
-  { id: "ae7", source: "a6", target: "a8", strength: 0.9 },
-  { id: "ae8", source: "a6", target: "a9", strength: 0.92 },
-  { id: "ae9", source: "a9", target: "a2", strength: 0.85 },
-  { id: "ae10", source: "a16", target: "a1", strength: 0.8 },
-  { id: "ae11", source: "a16", target: "a2", strength: 0.8 },
-  { id: "ae12", source: "a15", target: "a3", strength: 0.85 },
-  { id: "ae13", source: "a17", target: "a20", strength: 0.88 },
-];
-
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
-
-export default function BrainPage() {
+export default function REXBrain3DExplorerPage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  
-  // State
-  const [viewMode, setViewMode] = useState<GraphViewMode>("OBSIDIAN");
-  const [nodes, setNodes] = useState<GraphNode[]>(OBSIDIAN_NODES);
-  const [edges, setEdges] = useState<GraphEdge[]>(OBSIDIAN_EDGES);
-  
-  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
-  const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  
-  // Simulation Controls
-  const [isPhysicsRunning, setIsPhysicsRunning] = useState(true);
-  const [showNodeLabels, setShowNodeLabels] = useState(true);
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  
-  // Dragging State
-  const isDraggingRef = useRef(false);
-  const draggedNodeRef = useRef<GraphNode | null>(null);
-  const lastMousePosRef = useRef({ x: 0, y: 0 });
 
-  // Telemetry Log Ticker
-  const [telemetryLogs, setTelemetryLogs] = useState<string[]>([]);
+  // States
+  const [nodes, setNodes] = useState<GraphNode[]>(SEED_NODES);
+  const [edges, setEdges] = useState<GraphEdge[]>(SEED_EDGES);
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(SEED_NODES[1]);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
 
-  // --------------------------------------------------------------------------
-  // SWITCH VIEW MODE DATA
-  // --------------------------------------------------------------------------
-  useEffect(() => {
-    if (viewMode === "OBSIDIAN") {
-      setNodes(OBSIDIAN_NODES.map(n => ({ ...n })));
-      setEdges(OBSIDIAN_EDGES.map(e => ({ ...e })));
-    } else if (viewMode === "AGENTS") {
-      setNodes(AGENT_NODES.map(n => ({ ...n })));
-      setEdges(AGENT_EDGES.map(e => ({ ...e })));
-    } else if (viewMode === "SYNTHESIS") {
-      // Create dynamic synthesis cluster with 25 nodes
-      const synthNodes: GraphNode[] = Array.from({ length: 24 }).map((_, i) => {
-        const angle = (i / 24) * Math.PI * 2;
-        const radiusDist = 140 + Math.random() * 180;
-        return {
-          id: `synth_${i}`,
-          label: `Vector Ingestion ${i + 1}`,
-          category: i % 2 === 0 ? "ai_ml" : i % 3 === 0 ? "biotech" : "energy",
-          x: Math.cos(angle) * radiusDist,
-          y: Math.sin(angle) * radiusDist,
-          vx: 0,
-          vy: 0,
-          radius: 12 + (i % 4) * 3,
-          color: i % 3 === 0 ? "#E8D5B7" : i % 2 === 0 ? "#C2410C" : "#4D7C5F",
-          confidence: 96 + Math.random() * 3.9,
-          weight: Number((0.7 + Math.random() * 0.28).toFixed(2)),
-          recency: `${i * 2}s ago`,
-          cluster: `Live Track ${ (i % 4) + 1 }`,
-          subtopics: [`Embed 768d #${i * 14}`, `Cosine Sim 0.${88 + (i % 10)}`],
-          description: `Live streaming neural vector chunk ingested from parallel Web search index #${i + 1}.`
-        };
-      });
-      synthNodes.unshift({
-        id: "synth_center",
-        label: "Live Neural Synthesis Hub",
-        category: "core_agent",
-        x: 0,
-        y: 0,
-        vx: 0,
-        vy: 0,
-        radius: 26,
-        color: "#ffffff",
-        confidence: 99.9,
-        weight: 1.0,
-        recency: "Live",
-        cluster: "Hub",
-        subtopics: ["Streaming SSE", "Chunk Assembly"],
-        description: "Central ingestion hub binding live web scrape streams into grounded Markdown sections."
-      });
-      const synthEdges: GraphEdge[] = synthNodes.slice(1).map((n, i) => ({
-        id: `se_${i}`,
-        source: "synth_center",
-        target: n.id,
-        strength: 0.85
-      }));
-      setNodes(synthNodes);
-      setEdges(synthEdges);
+  // MUTABLE CAMERA CONTROLS (USING REFS TO PREVENT REACT STATE RECURSION)
+  const pitchRef = useRef<number>(0.35); // X rotation
+  const yawRef = useRef<number>(0.45);   // Y rotation
+  const zoomRef = useRef<number>(1.1);
+  const panXRef = useRef<number>(0);
+  const panYRef = useRef<number>(0);
+  const isAutoRotateRef = useRef<boolean>(true);
+  const [isAutoRotateUI, setIsAutoRotateUI] = useState<boolean>(true);
+  const [displayZoom, setDisplayZoom] = useState<number>(110);
+  const isDraggingRef = useRef<boolean>(false);
+  const dragRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Filters Panel State (Prompt 15 Requirement 3)
+  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [minConfidence, setMinConfidence] = useState<number>(0.0);
+  const [maxConfidence, setMaxConfidence] = useState<number>(1.0);
+  const [statusFilter, setStatusFilter] = useState<string[]>(["draft", "active", "verified", "disputed"]);
+  const [tierFilter, setTierFilter] = useState<string[]>(["hot", "warm", "cold"]);
+  const [typeFilter, setTypeFilter] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Path Trace Mode State (Prompt 15 Requirement 5)
+  const [isPathTraceMode, setIsPathTraceMode] = useState<boolean>(false);
+  const [pathSourceId, setPathSourceId] = useState<string | null>(null);
+  const [pathTargetId, setPathTargetId] = useState<string | null>(null);
+  const [tracedPathNodes, setTracedPathNodes] = useState<string[]>([]);
+  const [tracedPathEdges, setTracedPathEdges] = useState<string[]>([]);
+
+  // Time-Lapse Playback & Live Activity Pulse (Prompt 17)
+  const [commits, setCommits] = useState<any[]>([]);
+  const [currentCommitIdx, setCurrentCommitIdx] = useState<number>(0);
+  const [livePulseLogs, setLivePulseLogs] = useState<string[]>([]);
+  const [executingAgentNode, setExecutingAgentNode] = useState<string>("Synthesizer Agent");
+
+  // Fetch Live Graph Data & Telemetry
+  const fetchGraphData = useCallback(async () => {
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/brain/graph");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nodes && data.nodes.length > 0) {
+          const apiNodes: GraphNode[] = data.nodes.map((n: any, idx: number) => {
+            const angle = (idx / data.nodes.length) * 2 * Math.PI;
+            const rDist = 160 + (idx % 6) * 45;
+            
+            // Map Prompt 14 color rules based on tier/type
+            let color = "#E2E8F0"; // Tier 3
+            const type = n.type || "concept";
+            const conf = (n.confidence || 90) / 100;
+            const tier = n.tier || (idx % 3 === 0 ? "hot" : idx % 3 === 1 ? "warm" : "cold");
+            
+            if (n.cluster === "00_System" || n.category === "core_agent" || type === "framework") {
+              color = "#6366F1"; // Tier 1: Core System
+            } else if (conf >= 0.75 && (n.status === "verified" || type === "claim" || type === "fact")) {
+              color = "#EF4444"; // Tier 2: High-Value Verified
+            } else if (tier === "cold" || type === "source") {
+              color = "#F59E0B"; // Tier 4: Peripheral Leaf
+            }
+
+            return {
+              id: n.id,
+              label: n.label || n.title || n.id,
+              type: type,
+              status: n.status || "active",
+              tier: tier,
+              confidence: conf,
+              created: n.created || "2026-08-25",
+              updated: n.updated || "2026-08-29",
+              category: n.category || "ai_ml",
+              x: Math.cos(angle) * rDist,
+              y: Math.sin(angle) * rDist,
+              z: (idx % 5 - 2) * 50,
+              vx: 0, vy: 0,
+              radius: 12 + Math.min(12, (n.out_links || []).length * 2), // Prompt 14 degree-based size
+              color: color,
+              weight: n.weight || 0.8,
+              recency: n.recency || "Live",
+              cluster: n.cluster || "02_Knowledge",
+              subtopics: n.subtopics || [],
+              description: n.description || "",
+              path: n.path || `02_Knowledge/Claims/${n.id}.md`
+            };
+          });
+
+          const apiEdges: GraphEdge[] = (data.edges || []).map((e: any, idx: number) => ({
+            id: e.id || `e_${idx}`,
+            source: e.source,
+            target: e.target,
+            strength: e.strength || 0.85,
+            label: e.label || "related_to"
+          }));
+
+          setNodes(apiNodes);
+          setEdges(apiEdges);
+          if (data.telemetry?.telemetry_logs) {
+            setLivePulseLogs(data.telemetry.telemetry_logs);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Using fallback seed graph payload.");
     }
-  }, [viewMode]);
-
-  // Simulated Telemetry updates
-  useEffect(() => {
-    const updates = [
-      "Vector recall: Ingested 5 prior lessons for solid-state battery query",
-      "Synaptic update: Linked 'MMR Filtering' <-> 'Domain Credibility'",
-      "Pruning stale node: 'Cached Source Snippet #104' (TTL expired)",
-      "Agent telemetry: 'Quality Scorer' evaluated report 9.6/10",
-      "Recursive loop: 'Gap Analyzer' triggered secondary search pass",
-      "Memory persisted: Stored 768d lesson vector in Supabase pgvector",
-      "Cache hit: Redis served 14 cached HTML scrape buffers"
-    ];
-    const interval = setInterval(() => {
-      const randomUpdate = updates[Math.floor(Math.random() * updates.length)];
-      setTelemetryLogs(prev => [randomUpdate, ...prev].slice(0, 6));
-    }, 3500);
-    return () => clearInterval(interval);
   }, []);
 
-  // --------------------------------------------------------------------------
-  // CANVAS PHYSICS & RENDER LOOP
-  // --------------------------------------------------------------------------
+  // Fetch Time-Lapse Commits
+  const fetchTimelapseData = useCallback(async () => {
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/brain/timelapse");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.commits && data.commits.length > 0) {
+          setCommits(data.commits);
+        }
+      }
+    } catch (e) {
+      console.warn("Time-lapse service unavailable.");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchGraphData();
+    fetchTimelapseData();
+    const interval = setInterval(fetchGraphData, 12000);
+    return () => clearInterval(interval);
+  }, [fetchGraphData, fetchTimelapseData]);
+
+  // Path Trace Mode Execution (Prompt 15 Requirement 5)
+  const executePathTrace = useCallback(async (srcId: string, tgtId: string) => {
+    try {
+      const res = await fetch(`http://localhost:8000/api/v1/brain/path?source=${srcId}&target=${tgtId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTracedPathNodes(data.path_nodes || []);
+        setTracedPathEdges(data.path_edges || []);
+      }
+    } catch (e) {
+      console.error("Path trace failed:", e);
+    }
+  }, []);
+
+  // Handle Node Click in 3D Canvas
+  const handleNodeClick = useCallback((node: GraphNode) => {
+    setSelectedNode(node);
+    if (isPathTraceMode) {
+      if (!pathSourceId) {
+        setPathSourceId(node.id);
+      } else if (!pathTargetId && node.id !== pathSourceId) {
+        setPathTargetId(node.id);
+        executePathTrace(pathSourceId, node.id);
+      } else {
+        setPathSourceId(node.id);
+        setPathTargetId(null);
+        setTracedPathNodes([]);
+        setTracedPathEdges([]);
+      }
+    }
+  }, [isPathTraceMode, pathSourceId, pathTargetId, executePathTrace]);
+
+  // 1-Hop Neighbor Ego-Network Isolation Set (Prompt 15 Requirement 2)
+  const connectedNeighborIds = useMemo(() => {
+    if (!hoveredNodeId) return new Set<string>();
+    const neighbors = new Set<string>([hoveredNodeId]);
+    edges.forEach((e) => {
+      if (e.source === hoveredNodeId) neighbors.add(e.target);
+      if (e.target === hoveredNodeId) neighbors.add(e.source);
+    });
+    return neighbors;
+  }, [hoveredNodeId, edges]);
+
+  // Filtered Nodes Calculation (Prompt 15 Requirement 3)
+  const filteredNodes = useMemo(() => {
+    return nodes.filter((n) => {
+      if (n.confidence < minConfidence || n.confidence > maxConfidence) return false;
+      if (statusFilter.length > 0 && n.status && !statusFilter.includes(n.status)) return false;
+      if (tierFilter.length > 0 && n.tier && !tierFilter.includes(n.tier)) return false;
+      if (typeFilter.length > 0 && n.type && !typeFilter.includes(n.type)) return false;
+      if (searchQuery.trim() !== "") {
+        const q = searchQuery.toLowerCase();
+        const matchTitle = n.label.toLowerCase().includes(q);
+        const matchId = n.id.toLowerCase().includes(q);
+        const matchSub = n.subtopics.some((s) => s.toLowerCase().includes(q));
+        if (!matchTitle && !matchId && !matchSub) return false;
+      }
+      return true;
+    });
+  }, [nodes, minConfidence, maxConfidence, statusFilter, tierFilter, typeFilter, searchQuery]);
+
+  const filteredNodeIds = useMemo(() => new Set(filteredNodes.map((n) => n.id)), [filteredNodes]);
+
+  // Search Jump & Center Camera (Prompt 15 Requirement 4)
+  const handleSearchJump = (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) return;
+    const match = nodes.find((n) => n.label.toLowerCase().includes(query.toLowerCase()) || n.id.toLowerCase().includes(query.toLowerCase()));
+    if (match) {
+      setSelectedNode(match);
+      isAutoRotateRef.current = false;
+      setIsAutoRotateUI(false);
+      yawRef.current = -Math.atan2(match.x, match.z || 100);
+      pitchRef.current = Math.atan2(match.y, 250);
+      zoomRef.current = 1.35;
+      setDisplayZoom(135);
+    }
+  };
+
+  // Zoom Button Controls (Zoom In, Zoom Out, Reset)
+  const handleZoomIn = () => {
+    zoomRef.current = Math.min(2.8, zoomRef.current + 0.15);
+    setDisplayZoom(Math.round(zoomRef.current * 100));
+  };
+
+  const handleZoomOut = () => {
+    zoomRef.current = Math.max(0.4, zoomRef.current - 0.15);
+    setDisplayZoom(Math.round(zoomRef.current * 100));
+  };
+
+  const handleResetCamera = () => {
+    pitchRef.current = 0.35;
+    yawRef.current = 0.45;
+    zoomRef.current = 1.1;
+    panXRef.current = 0;
+    panYRef.current = 0;
+    setDisplayZoom(110);
+  };
+
+  // ----------------------------------------------------------------------------
+  // 3D PERSPECTIVE CANVAS RENDERING ENGINE (USING REFS - NO REACT STATE RECURSION)
+  // ----------------------------------------------------------------------------
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    let animationFrameId: number;
-
-    const resizeCanvas = () => {
-      canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
-      canvas.height = canvas.parentElement?.clientHeight || window.innerHeight;
-    };
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
+    let animId: number;
 
     const render = () => {
+      canvas.width = canvas.parentElement?.clientWidth || 1000;
+      canvas.height = canvas.parentElement?.clientHeight || 700;
+
       const width = canvas.width;
       const height = canvas.height;
-      const centerX = width / 2 + panOffset.x;
-      const centerY = height / 2 + panOffset.y;
+      const centerX = width / 2 + panXRef.current;
+      const centerY = height / 2 + panYRef.current;
 
-      // Clear Canvas
       ctx.clearRect(0, 0, width, height);
 
-      // Simple Force Physics Step
-      if (isPhysicsRunning) {
-        // Repulsion between nodes
-        for (let i = 0; i < nodes.length; i++) {
-          for (let j = i + 1; j < nodes.length; j++) {
-            const n1 = nodes[i];
-            const n2 = nodes[j];
-            const dx = n2.x - n1.x;
-            const dy = n2.y - n1.y;
-            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-            const minDist = (n1.radius + n2.radius) * 4;
-            if (dist < minDist) {
-              const force = (minDist - dist) / dist * 0.04;
-              n1.vx -= dx * force;
-              n1.vy -= dy * force;
-              n2.vx += dx * force;
-              n2.vy += dy * force;
-            }
-          }
-        }
-
-        // Spring force along edges
-        edges.forEach(e => {
-          const sourceNode = nodes.find(n => n.id === e.source);
-          const targetNode = nodes.find(n => n.id === e.target);
-          if (sourceNode && targetNode) {
-            const dx = targetNode.x - sourceNode.x;
-            const dy = targetNode.y - sourceNode.y;
-            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-            const desiredDist = 120;
-            const force = (dist - desiredDist) * 0.003 * e.strength;
-            sourceNode.vx += dx * force;
-            sourceNode.vy += dy * force;
-            targetNode.vx -= dx * force;
-            targetNode.vy -= dy * force;
-          }
-        });
-
-        // Center gravity & velocity dampening
-        nodes.forEach(n => {
-          if (n === draggedNodeRef.current) return;
-          n.vx -= n.x * 0.001;
-          n.vy -= n.y * 0.001;
-          n.vx *= 0.85;
-          n.vy *= 0.85;
-          n.x += n.vx;
-          n.y += n.vy;
-        });
+      // Auto-Rotate directly on ref
+      if (isAutoRotateRef.current && !isDraggingRef.current) {
+        yawRef.current += 0.0025;
       }
 
-      // Filtered Node IDs for search/category filter
-      const filteredNodeIds = new Set(
-        nodes
-          .filter(n => {
-            const matchesSearch = searchQuery === "" || n.label.toLowerCase().includes(searchQuery.toLowerCase()) || n.cluster.toLowerCase().includes(searchQuery.toLowerCase());
-            const matchesCat = selectedCategory === "all" || n.category === selectedCategory;
-            return matchesSearch && matchesCat;
-          })
-          .map(n => n.id)
-      );
+      const currentYaw = yawRef.current;
+      const currentPitch = pitchRef.current;
+      const currentZoom = zoomRef.current;
 
-      // DRAW EDGES
-      edges.forEach(e => {
-        const sourceNode = nodes.find(n => n.id === e.source);
-        const targetNode = nodes.find(n => n.id === e.target);
-        if (!sourceNode || !targetNode) return;
+      const cosYaw = Math.cos(currentYaw);
+      const sinYaw = Math.sin(currentYaw);
+      const cosPitch = Math.cos(currentPitch);
+      const sinPitch = Math.sin(currentPitch);
 
-        const sx = centerX + sourceNode.x * zoomLevel;
-        const sy = centerY + sourceNode.y * zoomLevel;
-        const tx = centerX + targetNode.x * zoomLevel;
-        const ty = centerY + targetNode.y * zoomLevel;
+      // Project Nodes to 3D Screen Coordinates
+      const projectedNodes: (GraphNode & { screenX: number; screenY: number; screenScale: number; screenZ: number })[] = [];
+      const nodeScreenMap = new Map<string, { x: number; y: number; scale: number; z: number }>();
 
-        const isDimmed = !filteredNodeIds.has(sourceNode.id) && !filteredNodeIds.has(targetNode.id);
-        const isHighlighted = selectedNode && (selectedNode.id === sourceNode.id || selectedNode.id === targetNode.id);
+      filteredNodes.forEach((node) => {
+        const x0 = node.x;
+        const y0 = node.y;
+        const z0 = node.z || 0;
 
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx, ty);
-        ctx.strokeStyle = isHighlighted
-          ? "#E8D5B7"
-          : isDimmed
-          ? "rgba(255,255,255,0.03)"
-          : "rgba(255,255,255,0.12)";
-        ctx.lineWidth = isHighlighted ? 2 * zoomLevel : 1 * zoomLevel;
-        ctx.stroke();
+        // 3D YAW & PITCH MATRIX ROTATION
+        const x1 = x0 * cosYaw + z0 * sinYaw;
+        const z1 = -x0 * sinYaw + z0 * cosYaw;
 
-        // Pulsing Edge Particles
-        if (!isDimmed) {
-          const time = Date.now() * 0.002;
-          const progress = (time % 1);
-          const px = sx + (tx - sx) * progress;
-          const py = sy + (ty - sy) * progress;
+        const y2 = y0 * cosPitch - z1 * sinPitch;
+        const z2 = y0 * sinPitch + z1 * cosPitch;
+
+        // PERSPECTIVE PROJECTION SCALE
+        const cameraDistance = 550;
+        const perspectiveScale = (cameraDistance / (cameraDistance + z2)) * currentZoom;
+
+        const screenX = centerX + x1 * perspectiveScale;
+        const screenY = centerY + y2 * perspectiveScale;
+
+        projectedNodes.push({
+          ...node,
+          screenX,
+          screenY,
+          screenScale: perspectiveScale,
+          screenZ: z2
+        });
+
+        nodeScreenMap.set(node.id, { x: screenX, y: screenY, scale: perspectiveScale, z: z2 });
+      });
+
+      // SORT NODES BY Z-DEPTH (Back-to-Front)
+      projectedNodes.sort((a, b) => b.screenZ - a.screenZ);
+
+      // DRAW RELATIONSHIP EDGES
+      edges.forEach((edge) => {
+        const src = nodeScreenMap.get(edge.source);
+        const tgt = nodeScreenMap.get(edge.target);
+
+        if (src && tgt && filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)) {
+          const isEgoHighlighted = connectedNeighborIds.has(edge.source) && connectedNeighborIds.has(edge.target);
+          const isPathHighlighted = tracedPathEdges.includes(edge.id) || (tracedPathNodes.includes(edge.source) && tracedPathNodes.includes(edge.target));
+          const isDimmed = hoveredNodeId && !isEgoHighlighted;
+
           ctx.beginPath();
-          ctx.arc(px, py, 2 * zoomLevel, 0, Math.PI * 2);
-          ctx.fillStyle = sourceNode.color;
-          ctx.fill();
+          ctx.moveTo(src.x, src.y);
+          ctx.lineTo(tgt.x, tgt.y);
+
+          if (isPathHighlighted) {
+            ctx.strokeStyle = "#06B6D4"; // Path Trace Beam: Glowing Cyan
+            ctx.lineWidth = 3.5;
+            ctx.shadowColor = "#06B6D4";
+            ctx.shadowBlur = 12;
+          } else if (isEgoHighlighted) {
+            ctx.strokeStyle = "#F59E0B"; // Ego Highlight: Glowing Gold
+            ctx.lineWidth = 2.2;
+            ctx.shadowColor = "#F59E0B";
+            ctx.shadowBlur = 8;
+          } else {
+            ctx.strokeStyle = isDimmed ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.14)";
+            ctx.lineWidth = Math.max(0.6, edge.strength * 1.5);
+            ctx.shadowBlur = 0;
+          }
+          ctx.stroke();
+          ctx.shadowBlur = 0;
         }
       });
 
-      // DRAW NODES
-      nodes.forEach(n => {
-        const nx = centerX + n.x * zoomLevel;
-        const ny = centerY + n.y * zoomLevel;
-        const r = n.radius * zoomLevel;
+      // DRAW 3D NODES
+      projectedNodes.forEach((node) => {
+        const r = Math.max(5, node.radius * node.screenScale);
+        const isHovered = hoveredNodeId === node.id;
+        const isSelected = selectedNode?.id === node.id;
+        const isEgoNeighbor = connectedNeighborIds.has(node.id);
+        const isPathNode = tracedPathNodes.includes(node.id);
+        const isDimmed = hoveredNodeId && !isEgoNeighbor;
 
-        const isMatch = filteredNodeIds.has(n.id);
-        const isSelected = selectedNode?.id === n.id;
-        const isHovered = hoveredNode?.id === n.id;
+        // Depth fog opacity
+        const depthAlpha = Math.max(0.4, Math.min(1.0, (550 - node.screenZ) / 550));
+        const finalAlpha = isDimmed ? 0.12 : depthAlpha;
 
-        // Dim non-matching nodes
-        ctx.globalAlpha = isMatch ? 1 : 0.15;
+        ctx.save();
+        ctx.globalAlpha = finalAlpha;
 
-        // Outer Glow for Selected / Core
-        if (isSelected || isHovered) {
+        // Hover / Selection Glow Halo Ring
+        if (isSelected || isHovered || isPathNode) {
           ctx.beginPath();
-          ctx.arc(nx, ny, r + 8 * zoomLevel, 0, Math.PI * 2);
-          ctx.fillStyle = n.color;
-          ctx.globalAlpha = 0.25;
+          ctx.arc(node.screenX, node.screenY, r + 8, 0, Math.PI * 2);
+          ctx.fillStyle = isPathNode ? "rgba(6, 182, 212, 0.3)" : isSelected ? "rgba(245, 158, 11, 0.35)" : "rgba(139, 92, 246, 0.3)";
           ctx.fill();
-          ctx.globalAlpha = isMatch ? 1 : 0.15;
         }
 
-        // Main Node Circle
+        // Live Activity Pulse Flare Ring (Prompt 17)
+        if (node.isNew) {
+          const pulseR = r + 12 + Math.sin(Date.now() / 150) * 4;
+          ctx.beginPath();
+          ctx.arc(node.screenX, node.screenY, pulseR, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(16, 185, 129, 0.8)";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+
+        // Core Solid Sphere Node Body
         ctx.beginPath();
-        ctx.arc(nx, ny, r, 0, Math.PI * 2);
-        ctx.fillStyle = n.color;
+        ctx.arc(node.screenX, node.screenY, r, 0, Math.PI * 2);
+        ctx.fillStyle = node.color;
+        ctx.shadowColor = node.color;
+        ctx.shadowBlur = isSelected || isHovered ? 18 : 6;
         ctx.fill();
-        ctx.lineWidth = isSelected ? 3 : 1.5;
-        ctx.strokeStyle = "#ffffff";
-        ctx.stroke();
 
-        // Node Label Text
-        if (showNodeLabels || isSelected || isHovered) {
-          ctx.font = `${Math.max(10, Math.min(13, 11 * zoomLevel))}px 'Instrument Sans', sans-serif`;
-          ctx.fillStyle = isSelected ? "#ffffff" : "rgba(255,255,255,0.85)";
+        // High-Contrast Dark Inner Sphere Core
+        ctx.beginPath();
+        ctx.arc(node.screenX, node.screenY, r * 0.45, 0, Math.PI * 2);
+        ctx.fillStyle = "#121214";
+        ctx.fill();
+
+        // High-Contrast Node Label
+        if (node.screenScale > 0.65 && !isDimmed) {
+          ctx.fillStyle = isSelected ? "#F59E0B" : "#F8FAFC";
+          ctx.font = `${Math.max(10, Math.round(12 * node.screenScale))}px 'Inter', sans-serif`;
           ctx.textAlign = "center";
-          ctx.fillText(n.label, nx, ny + r + 16 * zoomLevel);
+          ctx.fillText(node.label, node.screenX, node.screenY + r + 14);
         }
 
-        ctx.globalAlpha = 1;
+        ctx.restore();
       });
 
-      animationFrameId = requestAnimationFrame(render);
+      animId = requestAnimationFrame(render);
     };
 
     render();
 
-    return () => {
-      window.removeEventListener("resize", resizeCanvas);
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [nodes, edges, isPhysicsRunning, zoomLevel, panOffset, selectedNode, hoveredNode, searchQuery, selectedCategory, showNodeLabels]);
+    return () => cancelAnimationFrame(animId);
+  }, [
+    filteredNodes,
+    edges,
+    hoveredNodeId,
+    selectedNode,
+    connectedNeighborIds,
+    tracedPathNodes,
+    tracedPathEdges,
+    filteredNodeIds
+  ]);
 
-  // --------------------------------------------------------------------------
-  // INTERACTION HANDLERS (DRAG, CLICK, ZOOM)
-  // --------------------------------------------------------------------------
-  const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    const width = canvas.width;
-    const height = canvas.height;
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-    const centerX = width / 2 + panOffset.x;
-    const centerY = height / 2 + panOffset.y;
-    return {
-      x: (mouseX - centerX) / zoomLevel,
-      y: (mouseY - centerY) / zoomLevel
-    };
+  // Canvas Mouse Drag Orbit Controls
+  const handleMouseDown = (e: React.MouseEvent) => {
+    isDraggingRef.current = true;
+    dragRef.current = { x: e.clientX, y: e.clientY };
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const coords = getCanvasCoords(e);
-    lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingRef.current) return;
+    const dx = e.clientX - dragRef.current.x;
+    const dy = e.clientY - dragRef.current.y;
+    dragRef.current = { x: e.clientX, y: e.clientY };
 
-    // Check if clicked a node
-    const clicked = nodes.find(n => {
-      const dx = n.x - coords.x;
-      const dy = n.y - coords.y;
-      return Math.sqrt(dx * dx + dy * dy) <= n.radius + 4;
-    });
-
-    if (clicked) {
-      draggedNodeRef.current = clicked;
-      setSelectedNode(clicked);
+    if (e.shiftKey || e.buttons === 2) {
+      panXRef.current += dx;
+      panYRef.current += dy;
     } else {
-      isDraggingRef.current = true;
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const coords = getCanvasCoords(e);
-
-    // Hover detection
-    const hovered = nodes.find(n => {
-      const dx = n.x - coords.x;
-      const dy = n.y - coords.y;
-      return Math.sqrt(dx * dx + dy * dy) <= n.radius + 4;
-    });
-    setHoveredNode(hovered || null);
-
-    if (draggedNodeRef.current) {
-      draggedNodeRef.current.x = coords.x;
-      draggedNodeRef.current.y = coords.y;
-      draggedNodeRef.current.vx = 0;
-      draggedNodeRef.current.vy = 0;
-    } else if (isDraggingRef.current) {
-      const dx = e.clientX - lastMousePosRef.current.x;
-      const dy = e.clientY - lastMousePosRef.current.y;
-      setPanOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
-      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+      yawRef.current += dx * 0.006;
+      pitchRef.current = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitchRef.current - dy * 0.006));
     }
   };
 
   const handleMouseUp = () => {
     isDraggingRef.current = false;
-    draggedNodeRef.current = null;
   };
 
-  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+  const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    setZoomLevel(prev => Math.min(2.5, Math.max(0.4, prev * zoomFactor)));
-  };
-
-  const resetCamera = () => {
-    setZoomLevel(1);
-    setPanOffset({ x: 0, y: 0 });
-    setSelectedNode(null);
+    zoomRef.current = Math.max(0.4, Math.min(2.8, zoomRef.current - e.deltaY * 0.0012));
+    setDisplayZoom(Math.round(zoomRef.current * 100));
   };
 
   return (
-    <div className="relative h-screen w-full bg-[#09090B] text-white overflow-hidden font-sans">
-      {/* Background Canvas Effect */}
+    <div className="relative min-h-screen bg-[#0C0A09] text-[#F5F0E8] font-sans overflow-hidden flex flex-col">
       <BackgroundCanvas />
 
-      {/* TOP NAVBAR HEADER */}
-      <header className="absolute top-0 left-0 z-40 w-full p-4 sm:p-6 flex flex-wrap justify-between items-center pointer-events-none">
-        <div className="pointer-events-auto space-y-1">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-zinc-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Research Workspace
+      {/* HEADER BAR */}
+      <header className="relative z-20 flex items-center justify-between px-6 py-4 border-b border-[#252219] bg-[#141210]/90 backdrop-blur-md">
+        <div className="flex items-center space-x-4">
+          <Link href="/" className="p-2 rounded-xl bg-[#1E1B18] border border-[#252219] text-[#A09880] hover:text-[#E8D5B7] transition-colors">
+            <ArrowLeft className="w-5 h-5" />
           </Link>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 font-display">
-              <Brain className="h-6 w-6 text-[#E8D5B7]" />
-              REX OBSIDIAN NEURAL BRAIN
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-bold font-mono text-emerald-400 animate-pulse">
-              LIVE NEURAL SYNC
-            </span>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h1 className="text-xl font-bold tracking-tight text-[#E8D5B7] flex items-center gap-2">
+                <BrainCircuit className="w-6 h-6 text-[#F59E0B]" />
+                REX-Brain: Interactive 3D Explorer
+              </h1>
+              <span className="px-2.5 py-0.5 text-xs font-mono font-semibold text-[#10B981] bg-[#10B981]/10 rounded-full border border-[#10B981]/30">
+                PROMPT 15 LIVE
+              </span>
+            </div>
+            <p className="text-xs text-[#A09880]">Real-time Obsidian Vault Knowledge Graph with 3D Orbit & Path Trace</p>
           </div>
         </div>
 
-        {/* TOP QUICK NAVIGATION & STATUS */}
-        <div className="pointer-events-auto flex items-center gap-3 mt-2 sm:mt-0">
-          <Link
-            href="/learning-history"
-            className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-zinc-950/80 px-3.5 py-2 text-xs font-bold text-zinc-300 hover:text-white hover:border-white transition-all shadow-md backdrop-blur-md"
+        {/* TOP CONTROLS & SEARCH */}
+        <div className="flex items-center space-x-3">
+          {/* FUZZY SEARCH INPUT (Prompt 15 Requirement 4) */}
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-[#A09880]" />
+            <input
+              type="text"
+              placeholder="Fuzzy search title..."
+              value={searchQuery}
+              onChange={(e) => handleSearchJump(e.target.value)}
+              className="w-64 pl-9 pr-4 py-2 bg-[#1E1B18] border border-[#252219] rounded-xl text-xs text-[#F5F0E8] placeholder-[#5C5448] focus:outline-none focus:border-[#F59E0B]"
+            />
+          </div>
+
+          {/* PATH TRACE MODE TOGGLE (Prompt 15 Requirement 5) */}
+          <button
+            onClick={() => {
+              setIsPathTraceMode(!isPathTraceMode);
+              setPathSourceId(null);
+              setPathTargetId(null);
+              setTracedPathNodes([]);
+              setTracedPathEdges([]);
+            }}
+            className={`px-3 py-2 rounded-xl border text-xs font-medium flex items-center gap-2 transition-all ${
+              isPathTraceMode
+                ? "bg-[#06B6D4]/20 border-[#06B6D4] text-[#06B6D4] shadow-lg shadow-[#06B6D4]/20"
+                : "bg-[#1E1B18] border-[#252219] text-[#A09880] hover:text-[#E8D5B7]"
+            }`}
           >
-            <BrainCircuit className="h-3.5 w-3.5 text-[#C2410C]" />
-            Learning Memory
-          </Link>
-          <Link
-            href="/landing-page"
-            className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-zinc-950/80 px-3.5 py-2 text-xs font-bold text-zinc-300 hover:text-white hover:border-white transition-all shadow-md backdrop-blur-md"
+            <Compass className="w-4 h-4" />
+            {isPathTraceMode ? "Path Trace Active" : "Trace Path"}
+          </button>
+
+          {/* FILTER PANEL TOGGLE */}
+          <button
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className={`p-2.5 rounded-xl border transition-all ${
+              isFilterOpen ? "bg-[#F59E0B] border-[#F59E0B] text-[#121214]" : "bg-[#1E1B18] border-[#252219] text-[#A09880] hover:text-[#E8D5B7]"
+            }`}
           >
-            <Sparkles className="h-3.5 w-3.5 text-[#D4A853]" />
-            Platform Matrix
+            <Filter className="w-4 h-4" />
+          </button>
+
+          {/* LINK TO EVOLUTION VISUALIZATION PAGE (Prompt 16) */}
+          <Link
+            href="/evolution"
+            className="px-3.5 py-2 rounded-xl bg-[#C2410C]/20 border border-[#C2410C] text-[#C2410C] text-xs font-semibold hover:bg-[#C2410C]/30 transition-all flex items-center gap-2"
+          >
+            <Workflow className="w-4 h-4" />
+            Self-Evolution Views
           </Link>
         </div>
       </header>
 
-      {/* SEARCH BAR & CATEGORY FILTERS OVERLAY */}
-      <div className="absolute top-20 left-6 z-40 w-full max-w-xl space-y-3 pointer-events-auto">
-        <div className="flex items-center gap-2 rounded-2xl border border-white/25 bg-zinc-950/90 p-2 shadow-2xl backdrop-blur-xl">
-          <Search className="h-4 w-4 text-zinc-400 ml-2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search neural graph nodes, memory topics, clusters..."
-            className="w-full bg-transparent text-xs text-white outline-none placeholder:text-zinc-500 font-mono"
+      {/* MAIN VIEWPORT CANVAS & OVERLAYS */}
+      <div className="relative flex-1 flex overflow-hidden">
+        {/* 3D CANVAS EXPLORER */}
+        <div className="relative flex-1 bg-[#0C0A09] cursor-grab active:cursor-grabbing">
+          <canvas
+            ref={canvasRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onWheel={handleWheel}
+            onContextMenu={(e) => e.preventDefault()}
+            className="w-full h-full block"
           />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery("")} className="text-xs text-zinc-500 hover:text-white px-2">
-              Clear
-            </button>
-          )}
-        </div>
 
-        {/* CATEGORY FILTER PILLS */}
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-mono">
-          {[
-            { id: "all", label: "All Nodes" },
-            { id: "core_agent", label: "Core Agents" },
-            { id: "enhancement_agent", label: "Enhancement" },
-            { id: "infra_agent", label: "Infrastructure" },
-            { id: "ai_ml", label: "AI/ML" },
-            { id: "systems", label: "Systems" },
-            { id: "energy", label: "Energy" },
-            { id: "biotech", label: "Biotech" }
-          ].map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 py-1 rounded-full border transition-all ${
-                selectedCategory === cat.id
-                  ? "bg-white text-black font-bold border-white shadow-[0_0_12px_rgba(255,255,255,0.4)]"
-                  : "bg-zinc-950/70 border-white/20 text-zinc-400 hover:border-white/50 hover:text-white"
-              }`}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-      </div>
+          {/* FLOATING SPATIAL CAMERA ORBIT HUD & EXPLICIT ZOOM BUTTONS */}
+          <div className="absolute top-4 left-4 z-10 flex flex-col gap-2.5 bg-[#141210]/90 backdrop-blur-md p-3.5 rounded-2xl border border-[#252219] shadow-xl">
+            <div className="flex items-center justify-between text-xs text-[#A09880]">
+              <span>Spatial Camera</span>
+              <span className="font-mono text-[#F59E0B] font-bold">{displayZoom}%</span>
+            </div>
 
-      {/* GRAPH VIEW MODE SELECTOR & CONTROLS TOOLBAR (BOTTOM LEFT) */}
-      <div className="absolute bottom-6 left-6 z-40 space-y-3 pointer-events-auto">
-        {/* VIEW MODE TABS */}
-        <div className="flex items-center gap-1 rounded-xl border border-white/25 bg-zinc-950/90 p-1 shadow-2xl backdrop-blur-xl">
-          <button
-            onClick={() => setViewMode("OBSIDIAN")}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-mono font-bold transition-all ${
-              viewMode === "OBSIDIAN" ? "bg-white text-black shadow" : "text-zinc-400 hover:text-white"
-            }`}
-          >
-            <Compass className="h-3.5 w-3.5" /> Obsidian Graph
-          </button>
-          <button
-            onClick={() => setViewMode("AGENTS")}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-mono font-bold transition-all ${
-              viewMode === "AGENTS" ? "bg-white text-black shadow" : "text-zinc-400 hover:text-white"
-            }`}
-          >
-            <Workflow className="h-3.5 w-3.5" /> 21 Agents Topology
-          </button>
-          <button
-            onClick={() => setViewMode("SYNTHESIS")}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-mono font-bold transition-all ${
-              viewMode === "SYNTHESIS" ? "bg-white text-black shadow" : "text-zinc-400 hover:text-white"
-            }`}
-          >
-            <Layers className="h-3.5 w-3.5" /> Live Synthesis
-          </button>
-        </div>
-
-        {/* GRAPH CONTROL BUTTONS */}
-        <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-zinc-950/80 p-1.5 text-xs text-zinc-400 backdrop-blur-md">
-          <button
-            onClick={() => setIsPhysicsRunning(!isPhysicsRunning)}
-            title={isPhysicsRunning ? "Pause Graph Physics" : "Resume Graph Physics"}
-            className={`p-1.5 rounded hover:bg-white/10 hover:text-white transition ${isPhysicsRunning ? "text-emerald-400" : ""}`}
-          >
-            {isPhysicsRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-          </button>
-          <button
-            onClick={() => setShowNodeLabels(!showNodeLabels)}
-            title="Toggle Node Labels"
-            className={`p-1.5 rounded hover:bg-white/10 hover:text-white transition ${showNodeLabels ? "text-white" : ""}`}
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-          </button>
-          <button
-            onClick={resetCamera}
-            title="Reset Camera Zoom & Pan"
-            className="p-1.5 rounded hover:bg-white/10 hover:text-white transition"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
-          <span className="text-[10px] font-mono text-zinc-500 border-l border-white/15 pl-2 pr-1">
-            Zoom: {Math.round(zoomLevel * 100)}%
-          </span>
-        </div>
-      </div>
-
-      {/* RIGHT SIDEBAR: REAL-TIME TELEMETRY & MEMORY STATS */}
-      <div className="absolute top-20 right-6 z-40 w-80 space-y-4 pointer-events-auto">
-        {/* TELEMETRY PANEL */}
-        <motion.div
-          initial={{ x: 80, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          className="rounded-2xl border border-white/25 bg-zinc-950/90 p-5 space-y-4 shadow-2xl backdrop-blur-xl"
-        >
-          <div className="flex items-center justify-between border-b border-white/15 pb-3">
             <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-emerald-400" />
-              <span className="text-xs font-bold uppercase tracking-widest text-white font-mono">Neural Telemetry</span>
-            </div>
-            <span className="text-[10px] font-mono text-zinc-400">{nodes.length} Nodes Active</span>
-          </div>
-
-          <div className="space-y-3 font-mono">
-            <div className="space-y-1">
-              <div className="flex justify-between text-[10px] text-zinc-400">
-                <span>Cognitive Load</span>
-                <span className="text-white font-bold">28%</span>
-              </div>
-              <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-white/10">
-                <div className="h-full bg-emerald-400 w-1/4 rounded-full" />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-[10px] text-zinc-400">
-                <span>Synaptic Density</span>
-                <span className="text-white font-bold">{edges.length * 48} Edges</span>
-              </div>
-              <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-white/10">
-                <div className="h-full bg-[#E8D5B7] w-3/4 rounded-full" />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-[10px] text-zinc-400">
-                <span>pgvector Memory</span>
-                <span className="text-white font-bold">14,892 Vectors</span>
-              </div>
-              <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-white/10">
-                <div className="h-full bg-[#C2410C] w-5/6 rounded-full" />
-              </div>
-            </div>
-          </div>
-
-          {/* REAL-TIME UPDATES TICKER */}
-          <div className="pt-2 border-t border-white/15 space-y-2">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono flex items-center justify-between">
-              <span>Real-Time Ingestion Stream</span>
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-            </span>
-            <div className="space-y-1.5">
-              <AnimatePresence mode="popLayout">
-                {telemetryLogs.map((log, i) => (
-                  <motion.div
-                    key={log + i}
-                    initial={{ opacity: 0, x: 15 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -15 }}
-                    className="text-[10px] font-mono p-2 rounded bg-white/5 border border-white/10 text-zinc-300 leading-tight flex items-start gap-1.5"
-                  >
-                    <span className="text-emerald-400 shrink-0">⚡</span>
-                    <span>{log}</span>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* SYSTEM STATUS STATS CARD */}
-        <motion.div
-          initial={{ x: 80, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.15 }}
-          className="rounded-2xl border border-white/25 bg-zinc-950/90 p-4 space-y-3 shadow-2xl backdrop-blur-xl"
-        >
-          <div className="flex items-center gap-2 border-b border-white/15 pb-2.5">
-            <Database className="h-4 w-4 text-[#B45309]" />
-            <span className="text-xs font-bold uppercase tracking-widest text-white font-mono">Agent Infrastructure</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2 text-center font-mono">
-            <div className="p-2 rounded bg-white/5 border border-white/10">
-              <div className="text-base font-black text-white">21</div>
-              <div className="text-[9px] text-zinc-400 uppercase">Sub-Agents</div>
-            </div>
-            <div className="p-2 rounded bg-white/5 border border-white/10">
-              <div className="text-base font-black text-emerald-400">99.2%</div>
-              <div className="text-[9px] text-zinc-400 uppercase">Grounding</div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-
-      {/* MAIN INTERACTIVE HTML5 CANVAS */}
-      <canvas
-        ref={canvasRef}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onWheel={handleWheel}
-        className="h-full w-full cursor-grab active:cursor-grabbing"
-      />
-
-      {/* NODE DETAIL INSPECTOR OVERLAY DRAWER */}
-      <AnimatePresence>
-        {selectedNode && (
-          <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 30, scale: 0.96 }}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl p-6 rounded-3xl border border-white/30 bg-zinc-950/95 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] space-y-5"
-          >
-            <div className="flex justify-between items-start border-b border-white/15 pb-4">
-              <div className="flex items-center gap-3">
-                <div
-                  className="h-5 w-5 rounded-full border border-white"
-                  style={{ backgroundColor: selectedNode.color }}
-                />
-                <div>
-                  <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                    <span>{selectedNode.cluster} Cluster</span>
-                    {selectedNode.model && (
-                      <span className="px-1.5 py-0.5 rounded bg-white/15 text-white border border-white/20 text-[9px]">
-                        Model: {selectedNode.model}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-xl font-bold font-display text-white">{selectedNode.label}</h3>
-                </div>
-              </div>
               <button
-                onClick={() => setSelectedNode(null)}
-                className="p-1 text-zinc-400 hover:text-white rounded-full hover:bg-white/10 transition-colors"
+                onClick={() => {
+                  isAutoRotateRef.current = !isAutoRotateRef.current;
+                  setIsAutoRotateUI(isAutoRotateRef.current);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 ${
+                  isAutoRotateUI ? "bg-[#F59E0B]/20 border-[#F59E0B] text-[#F59E0B]" : "bg-[#1E1B18] border-[#252219] text-[#A09880]"
+                }`}
               >
-                <span className="text-xs font-mono">Close ✕</span>
+                {isAutoRotateUI ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                360° Orbit
+              </button>
+
+              {/* ZOOM IN BUTTON */}
+              <button
+                onClick={handleZoomIn}
+                title="Zoom In"
+                className="p-1.5 rounded-lg bg-[#1E1B18] border border-[#252219] text-[#A09880] hover:text-[#E8D5B7] hover:border-[#F59E0B] transition-all"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+
+              {/* ZOOM OUT BUTTON */}
+              <button
+                onClick={handleZoomOut}
+                title="Zoom Out"
+                className="p-1.5 rounded-lg bg-[#1E1B18] border border-[#252219] text-[#A09880] hover:text-[#E8D5B7] hover:border-[#F59E0B] transition-all"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+
+              {/* RESET CAMERA BUTTON */}
+              <button
+                onClick={handleResetCamera}
+                title="Reset Camera View"
+                className="p-1.5 rounded-lg bg-[#1E1B18] border border-[#252219] text-[#A09880] hover:text-[#E8D5B7] hover:border-[#F59E0B] transition-all"
+              >
+                <RotateCcw className="w-4 h-4" />
               </button>
             </div>
+          </div>
 
-            <p className="text-xs text-zinc-300 leading-relaxed">
-              {selectedNode.description}
-            </p>
+          {/* PATH TRACE INSTRUCTION BANNER */}
+          {isPathTraceMode && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 px-4 py-2 bg-[#06B6D4]/20 border border-[#06B6D4] text-[#06B6D4] text-xs font-medium rounded-xl flex items-center gap-3 shadow-xl">
+              <Compass className="w-4 h-4 animate-spin" />
+              <span>
+                {!pathSourceId
+                  ? "Click Source Node A"
+                  : !pathTargetId
+                  ? `Source selected: ${pathSourceId.slice(0, 10)}... Click Target Node B`
+                  : `Path Traced (${tracedPathNodes.length} nodes, ${tracedPathEdges.length} edges)`}
+              </span>
+            </div>
+          )}
 
-            <div className="grid grid-cols-4 gap-2 text-center font-mono">
-              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-                <div className="text-[9px] text-zinc-500 uppercase">Confidence</div>
-                <div className="text-sm font-bold text-emerald-400">{selectedNode.confidence}%</div>
+          {/* LIVE ACTIVITY PULSE LOG OVERLAY (Prompt 17) */}
+          <div className="absolute bottom-4 left-4 z-10 w-96 bg-[#141210]/90 backdrop-blur-md p-3.5 rounded-2xl border border-[#252219]">
+            <div className="flex items-center justify-between text-xs font-bold text-[#E8D5B7] mb-2">
+              <span className="flex items-center gap-1.5">
+                <Activity className="w-4 h-4 text-[#10B981] animate-pulse" />
+                Live Ingestion Stream
+              </span>
+              <span className="text-[10px] text-[#A09880]">{executingAgentNode}</span>
+            </div>
+            <div className="space-y-1.5 max-h-24 overflow-y-auto font-mono text-[11px] text-[#A09880]">
+              {livePulseLogs.slice(0, 3).map((log, idx) => (
+                <div key={idx} className="flex items-center gap-2 truncate text-[#F5F0E8]/90">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981]" />
+                  <span>{log}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* TIME-LAPSE PLAYBACK SCRUB BAR (Prompt 17) */}
+          <div className="absolute bottom-4 right-4 z-10 w-80 bg-[#141210]/90 backdrop-blur-md p-3.5 rounded-2xl border border-[#252219]">
+            <div className="flex items-center justify-between text-xs text-[#E8D5B7] mb-2">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-[#F59E0B]" />
+                Git Vault Time-Lapse
+              </span>
+              <span className="text-[10px] text-[#A09880]">{commits.length} commits</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={Math.max(0, commits.length - 1)}
+              value={currentCommitIdx}
+              onChange={(e) => setCurrentCommitIdx(Number(e.target.value))}
+              className="w-full h-1.5 bg-[#252219] rounded-lg appearance-none cursor-pointer accent-[#F59E0B]"
+            />
+            {commits[currentCommitIdx] && (
+              <div className="mt-2 text-[10px] text-[#A09880] truncate font-mono">
+                {commits[currentCommitIdx].commit} — {commits[currentCommitIdx].message}
               </div>
-              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-                <div className="text-[9px] text-zinc-500 uppercase">Weight</div>
-                <div className="text-sm font-bold text-white">{selectedNode.weight}</div>
+            )}
+          </div>
+        </div>
+
+        {/* MULTI-FILTER DRAWER (Prompt 15 Requirement 3) */}
+        <AnimatePresence>
+          {isFilterOpen && (
+            <motion.div
+              initial={{ x: -320, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -320, opacity: 0 }}
+              className="w-80 border-r border-[#252219] bg-[#141210] p-5 overflow-y-auto flex flex-col gap-5 z-20"
+            >
+              <div className="flex items-center justify-between border-b border-[#252219] pb-3">
+                <h3 className="text-sm font-bold text-[#E8D5B7] flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-[#F59E0B]" />
+                  Graph Multi-Filters
+                </h3>
+                <button onClick={() => setIsFilterOpen(false)} className="text-[#A09880] hover:text-[#E8D5B7]">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-                <div className="text-[9px] text-zinc-500 uppercase">Recency</div>
-                <div className="text-sm font-bold text-white">{selectedNode.recency}</div>
+
+              {/* CONFIDENCE SLIDER */}
+              <div>
+                <label className="text-xs text-[#A09880] block mb-2">Confidence Range (Min: {(minConfidence * 100).toFixed(0)}%)</label>
+                <input
+                  type="range"
+                  min="0.0"
+                  max="1.0"
+                  step="0.05"
+                  value={minConfidence}
+                  onChange={(e) => setMinConfidence(Number(e.target.value))}
+                  className="w-full h-1.5 bg-[#252219] rounded-lg appearance-none cursor-pointer accent-[#F59E0B]"
+                />
               </div>
-              <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-                <div className="text-[9px] text-zinc-500 uppercase">Edges</div>
-                <div className="text-sm font-bold text-white">
-                  {edges.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).length}
+
+              {/* STATUS MULTI-SELECT */}
+              <div>
+                <label className="text-xs text-[#A09880] block mb-2">Status Enum</label>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {["draft", "active", "verified", "disputed", "archived"].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() =>
+                        setStatusFilter((prev) => (prev.includes(st) ? prev.filter((s) => s !== st) : [...prev, st]))
+                      }
+                      className={`px-2.5 py-1.5 rounded-lg border text-left font-mono ${
+                        statusFilter.includes(st) ? "bg-[#F59E0B]/20 border-[#F59E0B] text-[#F59E0B]" : "bg-[#1E1B18] border-[#252219] text-[#A09880]"
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
                 </div>
               </div>
-            </div>
 
-            {/* SUBTOPICS TAGS */}
-            <div className="space-y-1.5 pt-1">
-              <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider">Associated Sub-topics & Keywords</span>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedNode.subtopics.map((st, i) => (
-                  <span key={i} className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-white/20 text-[11px] font-mono text-zinc-200">
-                    #{st}
-                  </span>
-                ))}
+              {/* TIER MULTI-SELECT */}
+              <div>
+                <label className="text-xs text-[#A09880] block mb-2">Memory Tier</label>
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  {["hot", "warm", "cold"].map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTierFilter((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))}
+                      className={`px-2.5 py-1.5 rounded-lg border text-center font-mono capitalize ${
+                        tierFilter.includes(t) ? "bg-[#10B981]/20 border-[#10B981] text-[#10B981]" : "bg-[#1E1B18] border-[#252219] text-[#A09880]"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* SIDE PANEL DETAIL DRAWER (Prompt 15 Requirement 1) */}
+        <AnimatePresence>
+          {selectedNode && (
+            <motion.div
+              initial={{ x: 360, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 360, opacity: 0 }}
+              className="w-96 border-l border-[#252219] bg-[#141210] p-6 overflow-y-auto flex flex-col justify-between z-20"
+            >
+              <div>
+                <div className="flex items-center justify-between border-b border-[#252219] pb-4 mb-4">
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[#F59E0B] bg-[#F59E0B]/10 px-2 py-0.5 rounded border border-[#F59E0B]/30">
+                      {selectedNode.type || "concept"}
+                    </span>
+                    <h2 className="text-base font-bold text-[#E8D5B7] mt-2 leading-tight">{selectedNode.label}</h2>
+                  </div>
+                  <button onClick={() => setSelectedNode(null)} className="text-[#A09880] hover:text-[#E8D5B7]">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* FRONTMATTER DETAILS */}
+                <div className="space-y-4 text-xs text-[#A09880]">
+                  <div className="grid grid-cols-2 gap-3 bg-[#1E1B18] p-3 rounded-xl border border-[#252219] font-mono text-[11px]">
+                    <div>
+                      <span className="block text-[10px] text-[#5C5448]">STATUS</span>
+                      <span className="text-[#F5F0E8] capitalize">{selectedNode.status || "active"}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] text-[#5C5448]">TIER</span>
+                      <span className="text-[#10B981] capitalize">{selectedNode.tier || "hot"}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] text-[#5C5448]">CONFIDENCE</span>
+                      <span className="text-[#F59E0B]">{((selectedNode.confidence || 0.9) * 100).toFixed(0)}%</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] text-[#5C5448]">CREATED</span>
+                      <span className="text-[#F5F0E8]">{selectedNode.created || "2026-08-25"}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-semibold text-[#E8D5B7] mb-1">Body Preview & Metadata</h4>
+                    <p className="text-xs text-[#A09880] leading-relaxed bg-[#1E1B18] p-3 rounded-xl border border-[#252219]">
+                      {selectedNode.description}
+                    </p>
+                  </div>
+
+                  {/* SUBTOPICS / TAGS */}
+                  {selectedNode.subtopics.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-[#E8D5B7] mb-1.5">Tags</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedNode.subtopics.map((t, idx) => (
+                          <span key={idx} className="px-2 py-0.5 bg-[#1E1B18] border border-[#252219] rounded-md text-[10px] text-[#A09880]">
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* DIRECT OBSIDIAN:// URI LINK BUTTON (Prompt 15 Requirement 1) */}
+              <div className="pt-6 border-t border-[#252219]">
+                <a
+                  href={`obsidian://open?path=${encodeURIComponent(`REX-Brain/${selectedNode.path || ""}`)}`}
+                  className="w-full py-2.5 rounded-xl bg-[#F59E0B] text-[#121214] text-xs font-bold hover:bg-[#F59E0B]/90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#F59E0B]/20"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Open in Obsidian Vault
+                </a>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

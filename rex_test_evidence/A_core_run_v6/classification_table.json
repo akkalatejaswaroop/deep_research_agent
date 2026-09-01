@@ -1,0 +1,58 @@
+[
+  {
+    "item": "Fact extracted from run for query 'How are solid-state batteries being improved ",
+    "category": "facts",
+    "classification": "DUPLICATE",
+    "resulting_note_id": "none",
+    "confidence": 0.65,
+    "reason": "score 0.90, matched FCT-01J8YA3B94D830E93C830CFCCA"
+  },
+  {
+    "item": "[INSUFFICIENT EVIDENCE] No relevant sources were retrieved for this sub-question",
+    "category": "claims",
+    "classification": "DUPLICATE",
+    "resulting_note_id": "none",
+    "confidence": 0.6,
+    "reason": "score 0.90, matched CLM-01J8Y3B511ABB0D3E0A297B109"
+  },
+  {
+    "item": "[INSUFFICIENT EVIDENCE] No relevant sources were retrieved for this sub-question",
+    "category": "claims",
+    "classification": "CONTRADICTION",
+    "resulting_note_id": "none",
+    "confidence": 0.6,
+    "reason": "score 0.81, matched CLM-01J8Y3B511ABB0D3E0A297B109"
+  },
+  {
+    "item": "S0378775325021913",
+    "category": "sources",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "SRC-01J8Y70386244CC3F572E96403",
+    "confidence": 0.6,
+    "reason": "score 0.67, matched SRC-01J8Y70386244CC3F572E96403"
+  },
+  {
+    "item": "solid-state-battery-advancements-challen",
+    "category": "sources",
+    "classification": "LOW_CONFIDENCE",
+    "resulting_note_id": "SRC-01J8Y70386244CC3F572E96403",
+    "confidence": 0.6,
+    "reason": "score 0.75, matched SRC-01J8Y70386244CC3F572E96403"
+  },
+  {
+    "item": "Decompose broad queries into specific sub-questions before searching",
+    "category": "lessons",
+    "classification": "UPDATE",
+    "resulting_note_id": "LSN-01J8Y2773236FD3E46FBA82836",
+    "confidence": 0.7,
+    "reason": "score 0.83, matched LSN-01J8Y3BD2174ECEC9186F76F67"
+  },
+  {
+    "item": "What are long-term implications of How are solid-state batteries being impr?",
+    "category": "unanswered_questions",
+    "classification": "DUPLICATE",
+    "resulting_note_id": "none",
+    "confidence": 0.5,
+    "reason": "score 0.93, matched QST-01J8Y2F1F0A44AFCBA8EBC2ACE"
+  }
+]

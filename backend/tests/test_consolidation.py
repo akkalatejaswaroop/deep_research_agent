@@ -10,7 +10,10 @@ import pytest
 
 os.environ.setdefault("PREFER_LLM", "false")
 
+import sys
 import backend.agents.memory_agent as ma
+sys.modules["agents.memory_agent"] = ma
+
 
 
 def _fast_embed(text):
@@ -25,8 +28,9 @@ def _fast_embed(text):
 ma.LocalVectorIndex._embed = lambda self, text: _fast_embed(text)
 ma.LocalVectorIndex._embed_ollama = lambda self, text: None
 
+from datetime import datetime, timezone
 OLD_TS = "2026-06-01T10:00:00Z"   # far past -> stale
-NOW_TS = "2026-08-25T10:00:00Z"
+NOW_TS = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _cid(i: int) -> str:
@@ -46,12 +50,30 @@ def vault(tmp_path):
     ma._embedding_index_cold = None
     ma._touch_log.clear()
     ma._write_counts.clear()
+
+    try:
+        import agents.memory_agent as ama
+        ama.VAULT_PATH = tmp_path
+        ama._embedding_index = ma._embedding_index
+        ama._embedding_index_cold = None
+        ama._touch_log = ma._touch_log
+        ama._write_counts = ma._write_counts
+    except ImportError:
+        pass
+
     for cmd in (["git", "init"], ["git", "config", "user.name", "t"],
                 ["git", "config", "user.email", "t@t.t"]):
         subprocess.run(cmd, cwd=str(tmp_path), capture_output=True)
     yield tmp_path
     ma.VAULT_PATH = old
     ma._embedding_index_cold = old_cold
+    try:
+        import agents.memory_agent as ama
+        ama.VAULT_PATH = old
+        ama._embedding_index_cold = old_cold
+    except ImportError:
+        pass
+
 
 
 def _source(vault, nid="SRC-01J8Y000000000000000000008"):
